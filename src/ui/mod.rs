@@ -79,7 +79,7 @@ pub fn choice<T: PartialEq + Copy>(
         }))
         .fill(if selected { theme::ACCENT } else { p.secondary })
         .stroke(egui::Stroke::new(
-            1.0,
+            1.0_f32,
             if selected { theme::ACCENT } else { p.line },
         )),
     );
@@ -120,7 +120,7 @@ pub fn switch(ui: &mut egui::Ui, value: &mut bool, title: &str, hint: &str) -> e
         ui.painter().rect_stroke(
             rect,
             9,
-            egui::Stroke::new(1.5, theme::ACCENT),
+            egui::Stroke::new(1.5_f32, theme::ACCENT),
             egui::StrokeKind::Inside,
         );
     }

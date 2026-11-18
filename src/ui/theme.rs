@@ -77,12 +77,12 @@ pub fn apply(ctx: &egui::Context, theme: Theme) {
             s.visuals.extreme_bg_color = p.surface;
             s.visuals.override_text_color = Some(p.text);
             s.visuals.selection.bg_fill = ACCENT;
-            s.visuals.selection.stroke = egui::Stroke::new(1.0, Color32::WHITE);
+            s.visuals.selection.stroke = egui::Stroke::new(1.0_f32, Color32::WHITE);
             let idle = &mut s.visuals.widgets.inactive;
             idle.bg_fill = p.secondary;
             idle.weak_bg_fill = p.secondary;
-            idle.bg_stroke = egui::Stroke::new(1.0, p.line);
-            idle.fg_stroke = egui::Stroke::new(1.2, p.text);
+            idle.bg_stroke = egui::Stroke::new(1.0_f32, p.line);
+            idle.fg_stroke = egui::Stroke::new(1.2_f32, p.text);
             let hovered = &mut s.visuals.widgets.hovered;
             hovered.bg_fill = if dark {
                 Color32::from_rgb(45, 66, 94)
@@ -90,16 +90,16 @@ pub fn apply(ctx: &egui::Context, theme: Theme) {
                 Color32::from_rgb(219, 232, 255)
             };
             hovered.weak_bg_fill = hovered.bg_fill;
-            hovered.bg_stroke = egui::Stroke::new(1.5, ACCENT);
-            hovered.fg_stroke = egui::Stroke::new(1.5, p.text);
+            hovered.bg_stroke = egui::Stroke::new(1.5_f32, ACCENT);
+            hovered.fg_stroke = egui::Stroke::new(1.5_f32, p.text);
             let active = &mut s.visuals.widgets.active;
             active.bg_fill = p.secondary;
             active.weak_bg_fill = p.secondary;
-            active.bg_stroke = egui::Stroke::new(1.5, ACCENT);
-            active.fg_stroke = egui::Stroke::new(1.5, p.text);
+            active.bg_stroke = egui::Stroke::new(1.5_f32, ACCENT);
+            active.fg_stroke = egui::Stroke::new(1.5_f32, p.text);
             s.visuals.widgets.noninteractive.bg_stroke =
-                egui::Stroke::new(1.0, p.line.gamma_multiply(0.45));
-            s.visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, p.muted);
+                egui::Stroke::new(1.0_f32, p.line.gamma_multiply(0.45));
+            s.visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0_f32, p.muted);
             for w in [
                 &mut s.visuals.widgets.inactive,
                 &mut s.visuals.widgets.hovered,
@@ -112,7 +112,7 @@ pub fn apply(ctx: &egui::Context, theme: Theme) {
             s.spacing.interact_size = egui::vec2(40.0, 40.0);
             s.spacing.combo_width = 240.0;
             s.visuals.window_corner_radius = egui::CornerRadius::same(18);
-            s.visuals.window_stroke = egui::Stroke::new(1.0, p.line);
+            s.visuals.window_stroke = egui::Stroke::new(1.0_f32, p.line);
             s.animation_time = 0.1;
             s.text_styles
                 .insert(TextStyle::Body, FontId::proportional(15.0));

@@ -223,7 +223,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                         )
                         .fill(if selected { theme::ACCENT } else { p.secondary })
                         .stroke(egui::Stroke::new(
-                            1.0,
+                            1.0_f32,
                             if selected { theme::ACCENT } else { p.line },
                         ))
                         .corner_radius(5),

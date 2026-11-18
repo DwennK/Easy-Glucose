@@ -354,7 +354,7 @@ pub fn chart(
                 plot.hline(
                     HLine::new(Text::Guide.get(), bound)
                         .color(color)
-                        .width(if mini { 1.0 } else { 1.5 })
+                        .width(if mini { 1.0 } else { 1.5_f32 })
                         .allow_hover(false),
                 );
             }
@@ -362,14 +362,14 @@ pub fn chart(
             plot.points(
                 Points::new(Text::Reading.get(), PlotPoints::from(all_points))
                     .color(point_color)
-                    .radius(if mini { 1.5 } else { 2.8 })
+                    .radius(if mini { 1.5 } else { 2.8_f32 })
                     .allow_hover(false),
             );
             if let Some(last) = latest {
                 plot.points(
                     Points::new(Text::Latest.get(), PlotPoints::from(vec![last]))
                         .color(point_color)
-                        .radius(if mini { 2.7 } else { 5.0 })
+                        .radius(if mini { 2.7 } else { 5.0_f32 })
                         .allow_hover(false),
                 );
             }
@@ -385,13 +385,13 @@ pub fn chart(
             plot.vline(
                 VLine::new(Text::SelectedReading.get(), t)
                     .color(theme::ACCENT)
-                    .width(1.0)
+                    .width(1.0_f32)
                     .allow_hover(false),
             );
             plot.points(
                 Points::new(Text::Selection.get(), PlotPoints::from(vec![[t, y]]))
                     .color(theme::ink(plot.ctx(), theme::ACCENT))
-                    .radius(if mini { 3.5 } else { 5.5 })
+                    .radius(if mini { 3.5 } else { 5.5_f32 })
                     .allow_hover(false),
             );
             Some((selected, (time - t).abs(), pointer))
@@ -444,7 +444,7 @@ pub fn chart(
         painter.rect_stroke(
             rect,
             7,
-            egui::Stroke::new(1.0, p.line),
+            egui::Stroke::new(1.0_f32, p.line),
             egui::StrokeKind::Inside,
         );
         painter.galley(rect.min + egui::vec2(10.0, 8.0), galley, p.text);
