@@ -92,7 +92,7 @@
   "History": "Verlauf",
   "Clock": "Systemuhr prüfen",
   "JustNow": "Vor weniger als einer Minute",
-  "Age": "Alter des Messwerts",
+  "Ago": "Vor {duration}",
   "Stale": "Veralteter Messwert",
   "Dashboard": "Meine Glukose",
   "HideWidget": "Minifenster ausblenden",

@@ -92,7 +92,7 @@
   "History": "História",
   "Clock": "Skontrolujte systémové hodiny",
   "JustNow": "Pred menej ako minútou",
-  "Age": "Vek merania",
+  "Ago": "Pred {duration}",
   "Stale": "Neaktuálne meranie",
   "Dashboard": "Moja glykémia",
   "HideWidget": "Skryť plávajúce okno",

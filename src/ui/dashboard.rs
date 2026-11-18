@@ -1,7 +1,9 @@
 use crate::i18n::Text;
 use crate::{
     app::App,
-    core::{GAP_SECONDS, Reading, Unit, chart_segments, nearest_reading, recent_delta},
+    core::{
+        GAP_SECONDS, Reading, STALE_SECONDS, Unit, chart_segments, nearest_reading, recent_delta,
+    },
     services::State,
     ui::{self, theme},
 };
@@ -25,29 +27,37 @@ pub fn reading_color(app: &App) -> egui::Color32 {
     }
 }
 pub fn freshness(reading: &Reading) -> String {
-    let age = reading.age_seconds(Utc::now());
+    relative_age(reading.age_seconds(Utc::now()))
+}
+
+fn relative_age(age: i64) -> String {
     if age < -60 {
-        Text::Clock.get().into()
-    } else if age < 60 {
-        Text::JustNow.get().into()
-    } else if age < 3600 {
-        let duration = format!("{} {}", age / 60, Text::Minute.get());
-        if age >= 600 {
-            format!("{duration} · {}", Text::Stale.get())
-        } else {
-            format!("{} · {duration}", Text::Age.get())
-        }
+        return Text::Clock.get().into();
+    }
+    if age < 60 {
+        return Text::JustNow.get().into();
+    }
+    let minutes = (age % 3600) / 60;
+    let duration = if age < 3600 {
+        format!("{minutes} {}", Text::Minute.get())
+    } else if minutes == 0 {
+        format!("{} {}", age / 3600, Text::Hour.get())
     } else {
         format!(
-            "{} {} {} {} · {}",
+            "{} {} {minutes} {}",
             age / 3600,
             Text::Hour.get(),
-            (age % 3600) / 60,
-            Text::Minute.get(),
-            Text::Stale.get()
+            Text::Minute.get()
         )
+    };
+    let elapsed = Text::Ago.get().replace("{duration}", &duration);
+    if age >= STALE_SECONDS {
+        format!("{elapsed} · {}", Text::Stale.get())
+    } else {
+        elapsed
     }
 }
+
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let p = theme::palette(ui.ctx());
     ui.horizontal(|ui| {
@@ -103,88 +113,78 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         .inner_margin(16)
         .show(ui, |ui| {
             ui.set_min_width(ui.available_width());
-            ui.columns(2, |cols| {
-                cols[0].vertical(|ui| {
-                    ui::muted(ui, Text::Latest.get());
-                    ui.horizontal(|ui| {
-                        let reading = app.snapshot.readings.last();
-                        ui.label(
-                            RichText::new(
-                                reading
-                                    .map(|r| r.display(app.config.unit))
-                                    .unwrap_or("—".into()),
-                            )
-                            .size(68.0)
+            ui.horizontal(|ui| {
+                ui.label(RichText::new(Text::Latest.get()).strong());
+                if let Some(reading) = app.snapshot.readings.last()
+                    && !reading.stale(Utc::now())
+                {
+                    let label = if reading.mgdl < app.config.low {
+                        Text::Below
+                    } else if reading.mgdl > app.config.high {
+                        Text::Above
+                    } else {
+                        Text::Within
+                    };
+                    ui::pill(ui, label.get(), reading_color(app));
+                }
+            });
+            if let Some(reading) = app.snapshot.readings.last() {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(reading.display(app.config.unit))
+                            .size(58.0)
                             .strong(),
-                        );
-                        ui.label(
-                            RichText::new(reading.map(|r| r.trend.arrow()).unwrap_or("—"))
-                                .size(38.0)
-                                .color(theme::ink(ui.ctx(), reading_color(app))),
-                        );
-                        ui::muted(ui, app.config.unit.label());
-                    });
-                    ui::muted(
-                        ui,
-                        app.snapshot
-                            .readings
-                            .last()
-                            .map(freshness)
-                            .unwrap_or(Text::ConnectHint.get().into()),
                     );
-                });
-                cols[1].with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
-                    ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
-                        if let Some(r) = app.snapshot.readings.last() {
-                            let label = if r.stale(Utc::now()) {
-                                Text::Stale.get()
-                            } else if r.mgdl < app.config.low {
-                                Text::Below.get()
-                            } else if r.mgdl > app.config.high {
-                                Text::Above.get()
-                            } else {
-                                Text::Within.get()
-                            };
-                            ui::pill(ui, label, reading_color(app));
-                            ui.label(r.trend.label());
-                            if let Some((delta, minutes)) = recent_delta(&app.snapshot.readings) {
-                                ui::muted(
-                                    ui,
-                                    format!(
-                                        "{} {} / {minutes} {}",
-                                        app.config.unit.delta(delta),
-                                        app.config.unit.label(),
-                                        Text::Minute.get()
-                                    ),
-                                );
-                            }
-                        } else if ui::primary(ui, Text::ConnectSource.get()).clicked() {
-                            app.account_open = true;
+                    ui.label(
+                        RichText::new(reading.trend.arrow())
+                            .size(34.0)
+                            .color(theme::ink(ui.ctx(), reading_color(app))),
+                    );
+                    ui::muted(ui, app.config.unit.label());
+                    ui.add_space(8.0);
+                    ui.separator();
+                    ui.vertical(|ui| {
+                        ui.spacing_mut().item_spacing.y = 2.0;
+                        ui.label(reading.trend.label());
+                        if let Some((delta, minutes)) = recent_delta(&app.snapshot.readings) {
+                            ui::muted(
+                                ui,
+                                format!(
+                                    "{} {} / {minutes} {}",
+                                    app.config.unit.delta(delta),
+                                    app.config.unit.label(),
+                                    Text::Minute.get()
+                                ),
+                            );
                         }
                     });
                 });
-            });
-        });
-    ui.add_space(12.0);
-    egui::Frame::new()
-        .fill(p.surface)
-        .corner_radius(16)
-        .inner_margin(16)
-        .show(ui, |ui| {
-            ui.set_min_width(ui.available_width());
+                ui::muted(
+                    ui,
+                    format!(
+                        "{} {}  ·  {}",
+                        Text::Measured.get(),
+                        reading.measured_at.with_timezone(&Local).format("%H:%M"),
+                        freshness(reading)
+                    ),
+                );
+            } else {
+                ui::muted(ui, Text::ConnectHint.get());
+                if ui::primary(ui, Text::ConnectSource.get()).clicked() {
+                    app.account_open = true;
+                }
+            }
+            ui.separator();
             ui.horizontal(|ui| {
                 ui.label(RichText::new(Text::History.get()).size(18.0).strong());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    for hours in [24, 12, 6, 3, 1] {
-                        if ui::choice(
-                            ui,
-                            &mut app.config.period_hours,
-                            hours,
-                            &format!("{hours} {}", Text::Hour.get()),
-                            75.0,
-                        ) {
-                            app.mark_config();
-                        }
+                    let durations = [1, 3, 6, 12, 24]
+                        .map(|hours| (hours, format!("{hours} {}", Text::Hour.get())));
+                    let options = durations
+                        .each_ref()
+                        .map(|(hours, label)| (*hours, ui::Segment::Text(label)));
+                    if ui::segments(ui, &mut app.config.period_hours, &options) {
+                        app.mark_config();
                     }
                 });
             });
@@ -451,5 +451,22 @@ pub fn chart(
     }
     if readings.is_empty() && !mini {
         ui::muted(ui, Text::NoData.get());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn relative_age_keeps_clock_and_stale_indicators_at_their_boundaries() {
+        assert_eq!(relative_age(-61), Text::Clock.get());
+        assert_eq!(relative_age(-60), Text::JustNow.get());
+        assert_eq!(relative_age(59), Text::JustNow.get());
+        assert_eq!(relative_age(120), "2 min ago");
+        assert_eq!(relative_age(STALE_SECONDS - 1), "9 min ago");
+        assert_eq!(relative_age(STALE_SECONDS), "10 min ago · Stale reading");
+        assert_eq!(relative_age(3600), "1 h ago · Stale reading");
+        assert_eq!(relative_age(3660), "1 h 1 min ago · Stale reading");
     }
 }

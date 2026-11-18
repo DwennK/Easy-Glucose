@@ -92,7 +92,7 @@
   "History": "Cronologia",
   "Clock": "Controlla l’orologio di sistema",
   "JustNow": "Meno di un minuto fa",
-  "Age": "Tempo trascorso",
+  "Ago": "{duration} fa",
   "Stale": "Misurazione datata",
   "Dashboard": "La mia glicemia",
   "HideWidget": "Nascondi mini-finestra",

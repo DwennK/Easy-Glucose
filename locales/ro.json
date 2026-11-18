@@ -92,7 +92,7 @@
   "History": "Istoric",
   "Clock": "Verificați ceasul sistemului",
   "JustNow": "Acum mai puțin de un minut",
-  "Age": "Timp de la măsurare",
+  "Ago": "Acum {duration}",
   "Stale": "Măsurătoare neactuală",
   "Dashboard": "Glicemia mea",
   "HideWidget": "Ascundeți fereastra flotantă",

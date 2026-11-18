@@ -92,7 +92,7 @@
   "History": "Geçmiş",
   "Clock": "Sistem saatini kontrol edin",
   "JustNow": "Bir dakikadan kısa süre önce",
-  "Age": "Ölçümden beri geçen süre",
+  "Ago": "{duration} önce",
   "Stale": "Eski ölçüm",
   "Dashboard": "Glikozum",
   "HideWidget": "Küçük pencereyi gizle",

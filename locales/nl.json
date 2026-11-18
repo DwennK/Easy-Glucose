@@ -92,7 +92,7 @@
   "History": "Geschiedenis",
   "Clock": "Controleer de systeemklok",
   "JustNow": "Minder dan een minuut geleden",
-  "Age": "Tijd sinds meting",
+  "Ago": "{duration} geleden",
   "Stale": "Verouderde meting",
   "Dashboard": "Mijn glucose",
   "HideWidget": "Zwevend venster verbergen",

@@ -92,7 +92,7 @@
   "History": "History",
   "Clock": "Check the system clock",
   "JustNow": "Less than a minute ago",
-  "Age": "Reading age",
+  "Ago": "{duration} ago",
   "Stale": "Stale reading",
   "Dashboard": "My glucose",
   "HideWidget": "Hide floating window",

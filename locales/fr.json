@@ -92,7 +92,7 @@
   "History": "Historique",
   "Clock": "Horloge à vérifier",
   "JustNow": "Il y a moins d’une minute",
-  "Age": "Ancienneté",
+  "Ago": "Il y a {duration}",
   "Stale": "Mesure ancienne",
   "Dashboard": "Ma glycémie",
   "HideWidget": "Masquer la mini-fenêtre",

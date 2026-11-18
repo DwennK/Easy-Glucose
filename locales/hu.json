@@ -92,7 +92,7 @@
   "History": "Előzmények",
   "Clock": "Ellenőrizze a rendszerórát",
   "JustNow": "Kevesebb mint egy perce",
-  "Age": "A mérés óta eltelt idő",
+  "Ago": "{duration} ezelőtt",
   "Stale": "Elavult mérés",
   "Dashboard": "Glükózértékeim",
   "HideWidget": "Lebegő ablak elrejtése",

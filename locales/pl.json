@@ -92,7 +92,7 @@
   "History": "Historia",
   "Clock": "Sprawdź zegar systemowy",
   "JustNow": "Mniej niż minutę temu",
-  "Age": "Czas od pomiaru",
+  "Ago": "{duration} temu",
   "Stale": "Nieaktualny pomiar",
   "Dashboard": "Moja glikemia",
   "HideWidget": "Ukryj miniokno",

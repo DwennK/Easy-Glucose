@@ -92,7 +92,7 @@
   "History": "Historik",
   "Clock": "Kontrollera systemklockan",
   "JustNow": "För mindre än en minut sedan",
-  "Age": "Tid sedan mätning",
+  "Ago": "För {duration} sedan",
   "Stale": "Inaktuellt mätvärde",
   "Dashboard": "Mitt glukosvärde",
   "HideWidget": "Dölj minifönster",

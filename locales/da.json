@@ -92,7 +92,7 @@
   "History": "Historik",
   "Clock": "Kontrollér systemuret",
   "JustNow": "For mindre end et minut siden",
-  "Age": "Tid siden måling",
+  "Ago": "For {duration} siden",
   "Stale": "Forældet måling",
   "Dashboard": "Min glukose",
   "HideWidget": "Skjul minivindue",

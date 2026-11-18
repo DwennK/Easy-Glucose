@@ -92,7 +92,7 @@
   "History": "Histórico",
   "Clock": "Verifique o relógio do sistema",
   "JustNow": "Há menos de um minuto",
-  "Age": "Idade da leitura",
+  "Ago": "Há {duration}",
   "Stale": "Leitura desatualizada",
   "Dashboard": "A minha glicemia",
   "HideWidget": "Ocultar janela flutuante",

@@ -92,7 +92,7 @@
   "History": "Historial",
   "Clock": "Comprueba el reloj del sistema",
   "JustNow": "Hace menos de un minuto",
-  "Age": "Antigüedad",
+  "Ago": "Hace {duration}",
   "Stale": "Lectura antigua",
   "Dashboard": "Mi glucosa",
   "HideWidget": "Ocultar ventana flotante",

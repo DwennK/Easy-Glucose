@@ -92,7 +92,7 @@
   "History": "Historia",
   "Clock": "Tarkista järjestelmän kello",
   "JustNow": "Alle minuutti sitten",
-  "Age": "Aikaa mittauksesta",
+  "Ago": "{duration} sitten",
   "Stale": "Vanhentunut tulos",
   "Dashboard": "Glukoosiarvoni",
   "HideWidget": "Piilota pienoisikkuna",
