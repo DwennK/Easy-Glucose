@@ -6,16 +6,15 @@ use crate::{
     services::{Command, State},
     sources::{Provider, nightscout::Auth},
     storage::{Theme, WidgetSize},
-    ui::{self, theme},
+    ui::{self, Segment, theme},
 };
 use eframe::egui::{self, RichText};
 
 pub fn account(app: &mut App, ui: &mut egui::Ui) {
     let previous = app.config.provider;
-    ui.horizontal(|ui| {
-        ui.label(Text::Provider.get());
+    row(ui, Text::Provider.get(), |ui| {
         egui::ComboBox::from_id_salt("source_provider")
-            .width(340.0)
+            .width(ui.available_width().min(300.0))
             .selected_text(app.config.provider.label())
             .show_ui(ui, |ui| {
                 for provider in Provider::ALL {
@@ -63,11 +62,10 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
     }
     ui.add_space(4.0);
     if app.config.provider == Provider::Dexcom {
-        ui.horizontal(|ui| {
-            ui.label(Text::Region.get());
+        row(ui, Text::Region.get(), |ui| {
             egui::ComboBox::from_id_salt("region")
                 .selected_text(app.config.region.label())
-                .width(340.0)
+                .width(ui.available_width().min(300.0))
                 .show_ui(ui, |ui| {
                     for region in [Region::International, Region::Us, Region::Japan] {
                         if ui
@@ -89,10 +87,9 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
                 .desired_width(f32::INFINITY)
                 .margin(egui::vec2(12.0, 10.0)),
         );
-        ui.horizontal(|ui| {
-            ui.label(Text::Access.get());
+        row(ui, Text::Access.get(), |ui| {
             egui::ComboBox::from_id_salt("nightscout_auth")
-                .width(300.0)
+                .width(ui.available_width().min(300.0))
                 .selected_text(if app.nightscout_auth == Auth::Token {
                     Text::ReadToken.get()
                 } else {
@@ -248,12 +245,7 @@ pub fn onboarding(app: &mut App, ui: &mut egui::Ui) {
 }
 
 pub fn header(app: &mut App, ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        ui.heading(Text::Settings.get());
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui::muted(ui, Text::AutoSave.get())
-        });
-    });
+    ui.heading(Text::Settings.get());
     ui.add_space(12.0);
     let width = (ui.available_width() - 20.0) / 3.0;
     ui.horizontal(|ui| {
@@ -284,22 +276,28 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
 }
 
 fn display(app: &mut App, ui: &mut egui::Ui) {
-    language_picker(app, ui);
-    ui.add_space(6.0);
     ui::group(ui, Text::AppearanceUnits.get(), |ui| {
+        language_picker(app, ui);
         row(ui, Text::Appearance.get(), |ui| {
-            for (value, label) in [
-                (Theme::Light, Text::Light.get()),
-                (Theme::Dark, Text::Dark.get()),
-                (Theme::System, Text::Automatic.get()),
-            ] {
-                ui::choice(ui, &mut app.config.theme, value, label, 138.0);
-            }
+            ui::segments(
+                ui,
+                &mut app.config.theme,
+                &[
+                    (Theme::Light, Segment::Text(Text::Light.get())),
+                    (Theme::Dark, Segment::Text(Text::Dark.get())),
+                    (Theme::System, Segment::Text(Text::Automatic.get())),
+                ],
+            );
         });
         row(ui, Text::Units.get(), |ui| {
-            for value in [Unit::Mmol, Unit::Mgdl] {
-                ui::choice(ui, &mut app.config.unit, value, value.label(), 138.0);
-            }
+            ui::segments(
+                ui,
+                &mut app.config.unit,
+                &[
+                    (Unit::Mmol, Segment::Text(Unit::Mmol.label())),
+                    (Unit::Mgdl, Segment::Text(Unit::Mgdl.label())),
+                ],
+            );
         });
     });
     ui.add_space(6.0);
@@ -311,13 +309,16 @@ fn display(app: &mut App, ui: &mut egui::Ui) {
             Text::WidgetHint.get(),
         );
         row(ui, Text::Size.get(), |ui| {
-            for (value, label) in [
-                (WidgetSize::Compact, Text::Small.get()),
-                (WidgetSize::Normal, Text::Medium.get()),
-                (WidgetSize::Extended, Text::Large.get()),
-            ] {
-                ui::choice(ui, &mut app.config.widget_size, value, label, 138.0);
-            }
+            let sizes = [
+                WidgetSize::Compact,
+                WidgetSize::Normal,
+                WidgetSize::Extended,
+            ];
+            ui::segments(
+                ui,
+                &mut app.config.widget_size,
+                &sizes.map(|size| (size, Segment::Window(size))),
+            );
         });
         ui::switch(ui, &mut app.config.always_on_top, Text::OnTop.get(), "");
         if app.config.widget_open && ui.button(Text::ResetWidget.get()).clicked() {
@@ -489,57 +490,64 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
 
 fn row(ui: &mut egui::Ui, label: &str, content: impl FnOnce(&mut egui::Ui)) {
     ui.horizontal(|ui| {
-        ui.add_sized([140.0, 42.0], egui::Label::new(label));
-        content(ui);
+        ui.set_min_height(36.0);
+        ui.label(label);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), content);
     });
 }
 fn bound(ui: &mut egui::Ui, label: &str, value: &mut u16, min: u16, max: u16, unit: Unit) {
-    ui.horizontal(|ui| {
-        ui.add_sized([190.0, 42.0], egui::Label::new(label));
-        if ui
-            .add_enabled(
-                *value > min,
-                egui::Button::new("−").min_size(egui::vec2(42.0, 42.0)),
-            )
-            .on_hover_text(Text::Decrease.get())
-            .clicked()
-        {
-            *value = value.saturating_sub(1).max(min);
-        }
-        ui.add_sized(
-            [110.0, 42.0],
-            egui::DragValue::new(value)
-                .range(min..=max)
-                .suffix(" mg/dL")
-                .speed(0.0),
-        )
-        .on_hover_text(Text::EnterValue.get());
-        if ui
-            .add_enabled(
-                *value < max,
-                egui::Button::new("+").min_size(egui::vec2(42.0, 42.0)),
-            )
-            .on_hover_text(Text::Increase.get())
-            .clicked()
-        {
-            *value = value.saturating_add(1).min(max);
-        }
-        if unit == Unit::Mmol {
-            ui::muted(ui, format!("{} mmol/L", Unit::Mmol.format((*value).into())));
-        }
+    row(ui, label, |ui| {
+        let width = if unit == Unit::Mmol { 303.0 } else { 214.0 };
+        ui.allocate_ui_with_layout(
+            egui::vec2(width, 42.0),
+            egui::Layout::left_to_right(egui::Align::Center),
+            |ui| {
+                if ui
+                    .add_enabled(
+                        *value > min,
+                        egui::Button::new("−").min_size(egui::vec2(42.0, 42.0)),
+                    )
+                    .on_hover_text(Text::Decrease.get())
+                    .clicked()
+                {
+                    *value = value.saturating_sub(1).max(min);
+                }
+                ui.add_sized(
+                    [110.0, 42.0],
+                    egui::DragValue::new(value)
+                        .range(min..=max)
+                        .suffix(" mg/dL")
+                        .speed(0.0),
+                )
+                .on_hover_text(Text::EnterValue.get());
+                if ui
+                    .add_enabled(
+                        *value < max,
+                        egui::Button::new("+").min_size(egui::vec2(42.0, 42.0)),
+                    )
+                    .on_hover_text(Text::Increase.get())
+                    .clicked()
+                {
+                    *value = value.saturating_add(1).min(max);
+                }
+                if unit == Unit::Mmol {
+                    ui::muted(ui, format!("{} mmol/L", Unit::Mmol.format((*value).into())));
+                }
+            },
+        );
     });
 }
 
 fn language_picker(app: &mut App, ui: &mut egui::Ui) {
     let previous = app.config.language.clone();
-    ui.horizontal(|ui| {
-        ui.label(Text::Language.get());
+    row(ui, Text::Language.get(), |ui| {
         let name = crate::i18n::LANGUAGES
             .iter()
             .find(|(id, _)| Some(*id) == previous.as_deref())
             .map_or(Text::SystemLanguage.get(), |(_, name)| *name);
         egui::ComboBox::from_id_salt("interface_language")
             .selected_text(name)
+            .width(208.0)
             .height(360.0)
             .show_ui(ui, |ui| {
                 ui.spacing_mut().interact_size.y = 28.0;
