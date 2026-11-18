@@ -190,7 +190,14 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                         }),
                 );
             } else {
-                ui::muted(ui, Text::NoSource.get());
+                ui::muted(
+                    ui,
+                    if app.snapshot.state.needs_account() {
+                        Text::NoSource.get()
+                    } else {
+                        Text::Waiting.get()
+                    },
+                );
             }
             ui.label(
                 RichText::new(format!(

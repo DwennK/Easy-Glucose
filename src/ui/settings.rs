@@ -441,7 +441,6 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
                     .clicked()
                 {
                     app.send(Command::Clear);
-                    app.snapshot.readings.clear();
                     app.confirm_clear = false;
                 }
             });

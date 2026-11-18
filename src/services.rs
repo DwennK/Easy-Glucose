@@ -23,6 +23,16 @@ pub enum State {
     Simulation,
 }
 impl State {
+    pub fn needs_account(&self) -> bool {
+        matches!(
+            self,
+            Self::Disconnected
+                | Self::InvalidCredentials
+                | Self::ActionRequired
+                | Self::SelectingPatient
+        )
+    }
+
     pub fn label(&self) -> &'static str {
         match self {
             Self::Disconnected => Text::Disconnected.get(),
@@ -226,10 +236,11 @@ async fn run(
                 continue;
             }
             Command::Clear => {
-                snapshot.readings.clear();
                 if !demo && let Err(e) = store.clear_source_cache(provider) {
                     emit(&events, &ctx, Event::Notice(e));
+                    continue;
                 }
+                snapshot.readings.clear();
                 emit(&events, &ctx, Event::Data(snapshot.clone()));
                 continue;
             }
@@ -529,6 +540,53 @@ mod tests {
         .await
         .expect("service event")
     }
+    #[tokio::test]
+    async fn clearing_history_preserves_the_login_and_scheduled_sync() {
+        use crate::sources::nightscout::{Auth, Credentials as NsCredentials};
+        use storage::CredentialStore;
+        let (url, requests) = crate::sources::test_support::server(vec![(
+            200,
+            serde_json::json!([
+                {"sgv": 105, "date": Utc::now().timestamp_millis()}
+            ]),
+        )])
+        .await;
+        let saved = Credentials::Nightscout(NsCredentials {
+            url,
+            token: Default::default(),
+            auth: Auth::Token,
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store {
+            directory: dir.path().into(),
+        };
+        let vault = MemoryVault::default();
+        let service = Service::start_with_credentials(
+            store.clone(),
+            Config::default(),
+            egui::Context::default(),
+            Box::new(vault.clone()),
+        )
+        .unwrap();
+        service.commands.send(Command::Connect(1, saved)).unwrap();
+        let before = snapshot(&service, 1, State::Connected).await;
+        assert_eq!(before.readings.len(), 1);
+        service.commands.send(Command::Clear).unwrap();
+        let after = snapshot(&service, 1, State::Connected).await;
+        assert!(after.readings.is_empty());
+        assert!(!after.state.needs_account());
+        assert!(after.next_sync.is_some());
+        assert_eq!(after.next_sync, before.next_sync);
+        let (credentials, _) = vault.load(Provider::Nightscout).unwrap().unwrap();
+        assert!(
+            store
+                .load_source_cache(&credentials, 7, false)
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(requests.await.unwrap().len(), 1);
+    }
+
     #[tokio::test]
     async fn failed_replacement_preserves_saved_source_and_switching_clears_visible_data() {
         use crate::sources::nightscout::{Auth, Credentials as NsCredentials};

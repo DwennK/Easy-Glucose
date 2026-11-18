@@ -169,11 +169,13 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                         freshness(reading)
                     ),
                 );
-            } else {
+            } else if app.snapshot.state.needs_account() {
                 ui::muted(ui, Text::ConnectHint.get());
                 if ui::primary(ui, Text::ConnectSource.get()).clicked() {
                     app.account_open = true;
                 }
+            } else {
+                ui::muted(ui, Text::Waiting.get());
             }
             ui.separator();
             ui.horizontal(|ui| {
