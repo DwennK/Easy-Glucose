@@ -1,7 +1,22 @@
 [
-  ["en", "English"], ["bg", "Български"], ["cs", "Čeština"], ["da", "Dansk"],
-  ["de", "Deutsch"], ["el", "Ελληνικά"], ["es", "Español"], ["fi", "Suomi"],
-  ["fr", "Français"], ["hu", "Magyar"], ["it", "Italiano"], ["nb", "Norsk bokmål"],
-  ["nl", "Nederlands"], ["pl", "Polski"], ["pt", "Português"], ["ro", "Română"],
-  ["sk", "Slovenčina"], ["sv", "Svenska"], ["tr", "Türkçe"], ["uk", "Українська"]
+  ["en", "English"],
+  ["fr", "Français"],
+  ["de", "Deutsch"],
+  ["it", "Italiano"],
+  ["es", "Español"],
+  ["pt", "Português"],
+  ["cs", "Čeština"],
+  ["da", "Dansk"],
+  ["hu", "Magyar"],
+  ["nl", "Nederlands"],
+  ["nb", "Norsk bokmål"],
+  ["pl", "Polski"],
+  ["ro", "Română"],
+  ["sk", "Slovenčina"],
+  ["fi", "Suomi"],
+  ["sv", "Svenska"],
+  ["tr", "Türkçe"],
+  ["el", "Ελληνικά"],
+  ["bg", "Български"],
+  ["uk", "Українська"]
 ]

@@ -540,11 +540,14 @@ fn language_picker(app: &mut App, ui: &mut egui::Ui) {
             .map_or(Text::SystemLanguage.get(), |(_, name)| *name);
         egui::ComboBox::from_id_salt("interface_language")
             .selected_text(name)
+            .height(360.0)
             .show_ui(ui, |ui| {
-                ui.selectable_value(&mut app.config.language, None, Text::SystemLanguage.get());
+                ui.spacing_mut().interact_size.y = 28.0;
                 for &(code, name) in crate::i18n::LANGUAGES {
                     ui.selectable_value(&mut app.config.language, Some(code.to_owned()), name);
                 }
+                ui.separator();
+                ui.selectable_value(&mut app.config.language, None, Text::SystemLanguage.get());
             });
     });
     if previous != app.config.language {

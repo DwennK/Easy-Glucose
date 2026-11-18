@@ -44,7 +44,7 @@ Credentials are stored in macOS Keychain or Windows Credential Manager. Easy Glu
 
 The interface uses your system language by default. You can change it on the welcome screen or under **Settings → Display → Language** without restarting. You can display readings in **mmol/L** or **mg/dL** in any language.
 
-**20 languages** — Български, Čeština, Dansk, Deutsch, Ελληνικά, English, Español, Français, Italiano, Magyar, Nederlands, Norsk bokmål, Polski, Português, Română, Slovenčina, Suomi, Svenska, Türkçe, Українська.
+**20 languages** — English, Français, Deutsch, Italiano, Español, Português, Čeština, Dansk, Magyar, Nederlands, Norsk bokmål, Polski, Română, Slovenčina, Suomi, Svenska, Türkçe, Ελληνικά, Български, Українська.
 
 ## Build from source
 
