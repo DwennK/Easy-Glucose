@@ -28,48 +28,44 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
             ui.spacing_mut().item_spacing.y = 4.0;
             ui.spacing_mut().button_padding = egui::vec2(5.0, 2.0);
             ui.spacing_mut().interact_size.y = 20.0;
-            ui.horizontal(|ui| {
+            let header = ui.horizontal(|ui| {
                 ui::logo(ui, 18.0);
-                let drag = ui.add(
-                    egui::Label::new(
-                        RichText::new(if app.snapshot.state == State::Simulation {
-                            "SIMULATION"
-                        } else {
-                            "Easy Glucose"
-                        })
-                        .size(10.0)
-                        .strong()
-                        .color(
-                            if app.snapshot.state == State::Simulation {
-                                theme::ink(ctx, theme::ORANGE)
-                            } else {
-                                p.muted
-                            },
-                        ),
-                    )
-                    .sense(egui::Sense::drag()),
-                );
-                if drag.drag_started() {
-                    ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
-                }
+                ui.add(egui::Label::new(
+                    RichText::new(if app.snapshot.state == State::Simulation {
+                        "SIMULATION"
+                    } else {
+                        "Easy Glucose"
+                    })
+                    .size(10.0)
+                    .strong()
+                    .color(if app.snapshot.state == State::Simulation {
+                        theme::ink(ctx, theme::ORANGE)
+                    } else {
+                        p.muted
+                    }),
+                ));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui
-                        .small_button("×")
-                        .on_hover_text("Masquer le widget")
-                        .clicked()
-                    {
+                    let close = ui.small_button("×").on_hover_text("Masquer le widget");
+                    if close.clicked() {
                         app.config.widget_open = false;
                         app.mark_config();
                     }
-                    if ui
-                        .small_button("↗")
-                        .on_hover_text("Ouvrir Ma glycémie")
-                        .clicked()
-                    {
+                    let open = ui.small_button("↗").on_hover_text("Ouvrir Ma glycémie");
+                    if open.clicked() {
                         app.show_dashboard();
                     }
-                });
+                    open.rect.left()
+                })
+                .inner
             });
+            let mut handle = header.response.rect;
+            handle.max.x = header.inner - 2.0;
+            let drag = ui
+                .interact(handle, ui.id().with("widget_drag"), egui::Sense::drag())
+                .on_hover_cursor(egui::CursorIcon::Grab);
+            if !cfg!(target_os = "macos") && drag.drag_started_by(egui::PointerButton::Primary) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
+            }
             ui.horizontal(|ui| {
                 ui.label(
                     RichText::new(

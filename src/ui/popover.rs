@@ -6,7 +6,7 @@ use crate::{
 use eframe::egui::{self, RichText};
 use std::time::{Duration, Instant};
 
-pub const SIZE: egui::Vec2 = egui::vec2(420.0, 420.0);
+pub const SIZE: egui::Vec2 = egui::vec2(420.0, 382.0);
 
 pub struct Popover {
     pub open: bool,
@@ -126,15 +126,33 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 ui::logo(ui, 18.0);
                 ui.label(RichText::new("Easy Glucose").strong().size(14.0));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui
-                        .add_sized(
-                            [24.0, 26.0],
-                            egui::Button::new(RichText::new("×").size(16.0)),
-                        )
-                        .on_hover_text("Fermer l’aperçu")
-                        .clicked()
-                    {
+                    if header_button(ui, egui::Button::new("×"), "Fermer l’aperçu").clicked() {
                         app.popover.close(now);
+                    }
+                    if header_button(
+                        ui,
+                        egui::Button::image(
+                            egui::Image::new(egui::include_image!("../../assets/settings.svg"))
+                                .fit_to_exact_size(egui::vec2(16.0, 16.0)),
+                        ),
+                        "Réglages",
+                    )
+                    .clicked()
+                    {
+                        app.show_dashboard();
+                        app.page = Page::Settings;
+                    }
+                    if header_button(
+                        ui,
+                        egui::Button::image(
+                            egui::Image::new(egui::include_image!("../../assets/dashboard.svg"))
+                                .fit_to_exact_size(egui::vec2(16.0, 16.0)),
+                        ),
+                        "Ouvrir l’app",
+                    )
+                    .clicked()
+                    {
+                        app.show_dashboard();
                     }
                 });
             });
@@ -223,7 +241,13 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
             });
             let mut config = app.config.clone();
             config.period_hours = app.popover.hours;
-            let height = (ui.available_height() - 38.0).max(100.0);
+            let height = (ui.available_height()
+                - if app.snapshot.readings.is_empty() {
+                    24.0
+                } else {
+                    0.0
+                })
+            .max(100.0);
             dashboard::chart(
                 ui,
                 "menubar_chart",
@@ -232,24 +256,19 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 height,
                 false,
             );
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                if ui.button("Ouvrir l’app").clicked() {
-                    app.show_dashboard();
-                }
-                if ui.button("Réglages").clicked() {
-                    app.show_dashboard();
-                    app.page = Page::Settings;
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(RichText::new("Sans alarme").size(11.0).color(p.muted));
-                });
-            });
         });
     if !app.popover.open {
         ctx.request_repaint_of(egui::ViewportId::ROOT);
     }
     ctx.request_repaint_after(Duration::from_secs(30));
+}
+
+fn header_button(ui: &mut egui::Ui, button: egui::Button<'_>, label: &str) -> egui::Response {
+    let response = ui.add_sized([30.0, 26.0], button);
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label)
+    });
+    response.on_hover_text(label)
 }
 
 #[cfg(test)]

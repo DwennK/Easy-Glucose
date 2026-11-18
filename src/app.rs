@@ -428,6 +428,7 @@ impl eframe::App for App {
             let id = egui::ViewportId::from_hash_of("glucose_widget");
             let mut builder = egui::ViewportBuilder::default()
                 .with_title("Easy Glucose · Widget")
+                .with_movable_by_background(true)
                 .with_decorations(false)
                 .with_resizable(false)
                 .with_inner_size(self.config.widget_size.dimensions())

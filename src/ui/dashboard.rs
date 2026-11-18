@@ -206,9 +206,6 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                         app.config.unit.label()
                     ),
                 );
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui::muted(ui, "Repères visuels · sans alarme")
-                });
             });
         });
     ui.add_space(8.0);
