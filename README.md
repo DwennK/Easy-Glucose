@@ -1,15 +1,29 @@
 <p align="center"><img src="assets/icon.png" alt="" width="86"></p>
 <h1 align="center">Easy Glucose</h1>
-<p align="center">View your glucose in the menu bar, in a floating widget, or on a 24-hour chart.</p>
+<p align="center">Follow your glucose in a compact desktop window, a floating widget, or the macOS menu bar.</p>
 <p align="center"><a href=".github/workflows/build.yml"><img src="https://github.com/DwennK/Easy-Glucose/actions/workflows/build.yml/badge.svg" alt="Native builds and tests"></a> · Rust · macOS and Windows · <a href="LICENSE">MIT License</a></p>
 
-<p align="center"><a href="#try-the-demo">Try the demo</a> · <a href="#three-views">Explore the views</a> · <a href="#connect-a-data-source">Connect a data source</a> · <a href="#build-from-source">Build from source</a></p>
+<p align="center"><a href="#download">Download</a> · <a href="#try-the-demo">Try the demo</a> · <a href="#three-views">Explore the views</a> · <a href="#connect-a-data-source">Connect a data source</a> · <a href="#build-from-source">Build from source</a></p>
 
-![Native dashboard showing six hours of simulated glucose readings in mmol/L](docs/images/dashboard.png)
+<p align="center"><img src="docs/images/dashboard.png" width="600" alt="Easy Glucose dashboard with 12 hours of simulated readings in mmol/L. Red and yellow dots mark readings outside the selected guides."></p>
+
+## Download
+
+Choose the ZIP for your computer from the [latest release](https://github.com/DwennK/Easy-Glucose/releases/latest).
+
+| Platform | Download | Open |
+| --- | --- | --- |
+| Mac with Apple silicon | [macOS ARM64](https://github.com/DwennK/Easy-Glucose/releases/latest/download/Easy-Glucose-aarch64-apple-darwin.zip) | Unzip and move **Easy Glucose.app** to Applications. |
+| Mac with an Intel processor | [macOS Intel](https://github.com/DwennK/Easy-Glucose/releases/latest/download/Easy-Glucose-x86_64-apple-darwin.zip) | Unzip and move **Easy Glucose.app** to Applications. |
+| Windows x64 | [Windows x64](https://github.com/DwennK/Easy-Glucose/releases/latest/download/Easy-Glucose-x86_64-pc-windows-msvc.zip) | Extract the folder and open **Easy Glucose.exe**. |
+
+The macOS apps are ad hoc signed and have not been notarized by Apple. The Windows executable is unsigned.
 
 ## Try the demo
 
-With stable Rust and your platform’s build tools installed, run the following commands. The demo uses simulated readings and requires no account. The screenshots in this README show the demo running on macOS.
+Open Easy Glucose and choose **Try the demo** on the welcome screen, or find it under **Settings → Advanced options**. The screenshots in this README use the macOS demo with example low and high guides.
+
+To run the demo from source, install stable Rust and your platform’s build tools, then run:
 
 ```sh
 git clone https://github.com/DwennK/Easy-Glucose.git
@@ -17,7 +31,7 @@ cd Easy-Glucose
 cargo run --release --locked -- --demo
 ```
 
-To view your own readings, run `cargo run --release --locked` and open **Settings → Data sources**. Easy Glucose shows how old each reading is. Use it as a secondary display and rely on your sensor’s official app for alarms and treatment decisions.
+To view your own readings, open **Settings → Data sources**, choose your provider and sign in. A green checkmark confirms a successful connection. Easy Glucose shows how old each reading is. Use it as a secondary display and rely on your sensor’s official app for alarms and treatment decisions.
 
 ## Three views
 
@@ -26,7 +40,9 @@ To view your own readings, run `cargo run --release --locked` and open **Setting
 | <img src="docs/images/menu-preview.png" width="420" alt="Compact glucose preview with two action buttons and a close button in the upper right"> | <img src="docs/images/widget.png" width="320" alt="Floating widget showing the glucose value, trend, reading time, and chart"> |
 | Click the glucose value to open the chart. The two buttons next to the close button open the dashboard and settings. Press Esc or click outside the preview to close it. | Drag the widget by its header. It remembers its position. Choose from three sizes and turn on **Always on top** to keep your reading visible over other windows. |
 
-In **My glucose**, choose a time range of 3, 6, 12, or 24 hours. Each point represents a reading, and gaps in the data remain visible. Hover over the chart to see the value and time of the nearest reading. Readings at least ten minutes old are marked as stale, even when the connection is working.
+Choose **3, 6, 12, or 24 hours** in any chart. The dashboard, widget and menu bar preview share the selected period. Each dot is a sensor reading. Red dots fall below your low guide and yellow dots rise above your high guide. Gaps in the data remain visible. Hover over a chart to inspect a reading and its time.
+
+The dashboard shows the latest value and trend arrow on the left. On the right, the change compares the last two readings when they are close enough in time. Readings at least ten minutes old are marked as stale, even when the connection is working.
 
 Right-click the macOS menu bar item or open the Windows system tray menu to access the main window, settings, and floating widget, or to quit the app.
 
@@ -38,7 +54,7 @@ Right-click the macOS menu bar item or open the Windows system tray menu to acce
 | **FreeStyle Libre · LibreLinkUp** | Use a LibreLinkUp account that has accepted a sharing invitation. If several people share data with you, choose whose readings to display. |
 | **Nightscout / Nocturne** | Enter the site’s HTTPS URL. For a private site, provide a read token. Public sites work without a token. API secret authentication is also available. |
 
-Credentials are stored in macOS Keychain or Windows Credential Manager. Easy Glucose keeps a separate local history for each source and associates it with the relevant account, person, or site. The app does not encrypt the local readings file. The Dexcom Share and LibreLinkUp connections use unofficial protocols. [How the connectors work and their limitations (in French)](docs/sources.md)
+Credentials are stored in macOS Keychain or Windows Credential Manager. Easy Glucose keeps a separate local history for each source and associates it with the relevant account, person, or site. **Settings → Advanced options → Clear history** removes the active source’s local readings. Your sign-in and scheduled sync are preserved. The provider may return recent readings again on the next sync. The app does not encrypt the local readings file. The Dexcom Share and LibreLinkUp connections use unofficial protocols. [How the connectors work and their limitations (in French)](docs/sources.md)
 
 ## Languages and units
 
@@ -59,7 +75,7 @@ python3 scripts/licenses.py
 python3 scripts/package.py
 ```
 
-On macOS, open `dist/Easy Glucose.app`. On Windows, run the two packaging scripts with `python`, then open `dist/Easy-Glucose-Windows/Easy Glucose.exe`. CI also produces archives for Apple Silicon Macs, Intel Macs, and Windows x64. The macOS bundles are ad hoc signed and have not been notarized by Apple. The Windows executable is unsigned. [Build and distribution guide (in French)](docs/distribution.md)
+On macOS, open `dist/Easy Glucose.app`. On Windows, run the two packaging scripts with `python`, then open `dist/Easy-Glucose-Windows/Easy Glucose.exe`. [Build and distribution guide (in French)](docs/distribution.md)
 
 ## Code layout
 
