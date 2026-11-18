@@ -12,6 +12,18 @@ Les ressources originales de marque sont dans `assets/`. Le script d’icônes e
 
 Installer le bundle macOS dans Applications avant d’activer le lancement automatique. Sous Windows, extraire le dossier dans un emplacement stable (par exemple un dossier utilisateur Applications), puis créer un raccourci de l’exécutable. Cette version propose une distribution portable, pas encore un installateur MSI avec désinstallation gérée.
 
+## Numérotation des releases
+
+La première version publique est `1.0.0`. À partir de cette base, choisir le plus petit incrément qui décrit les changements depuis la dernière release publiée.
+
+| Changement | Exemple |
+| --- | --- |
+| Correction de bug ou ajustement visuel compatible | `1.0.0` → `1.0.1` |
+| Nouvelle fonctionnalité compatible | `1.0.1` → `1.1.0` |
+| Rupture de compatibilité ou refonte majeure justifiant une nouvelle génération | `1.x.y` → `2.0.0` |
+
+La version de référence est celle de `Cargo.toml`. Mettre à jour `Cargo.lock`, puis créer le tag annoté `vMAJEURE.MINEURE.CORRECTIF` sur le commit de release. Le packaging vérifie que le tag correspond au manifeste. Avant de publier le brouillon GitHub, vérifier les trois archives et rédiger les notes de version.
+
 ## GitHub Actions
 
 La matrice utilise `windows-2025`, `macos-15` (ARM64) et `macos-15-intel`. Les labels proviennent de la [documentation GitHub des runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners). Les tests de protocole utilisent localhost, sans secrets. Les artefacts expirent après 14 jours. Les tags créent des releases en brouillon pour permettre signature et contrôle avant publication.

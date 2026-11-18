@@ -1,5 +1,6 @@
 """Bundle an already-built native binary; no network access and no signing secrets."""
 import argparse
+import json
 from pathlib import Path
 import os
 import plistlib
@@ -13,6 +14,13 @@ p = argparse.ArgumentParser()
 p.add_argument('--target', default='')
 p.add_argument('--archive', action='store_true')
 a = p.parse_args()
+metadata = json.loads(subprocess.check_output(
+    ['cargo', 'metadata', '--locked', '--no-deps', '--format-version', '1'], cwd=ROOT
+))
+version = next(p['version'] for p in metadata['packages'] if p['name'] == 'easy-glucose')
+if os.environ.get('GITHUB_REF_TYPE') == 'tag' and os.environ.get('GITHUB_REF_NAME') != f'v{version}':
+    raise SystemExit(f'Release tag must match Cargo.toml: expected v{version}')
+
 release = ROOT / 'target' / a.target / 'release'
 dist = ROOT / 'dist'
 dist.mkdir(exist_ok=True)
@@ -31,8 +39,8 @@ else:
     shutil.copy2(ROOT / 'assets/icon.icns', contents / 'Resources' / 'AppIcon.icns')
     with (contents / 'Info.plist').open('wb') as f:
         plistlib.dump({'CFBundleName':'Easy Glucose','CFBundleDisplayName':'Easy Glucose',
-            'CFBundleIdentifier':'ch.peaks.easy-glucose','CFBundleVersion':'1',
-            'CFBundleShortVersionString':'0.1.0','CFBundlePackageType':'APPL',
+            'CFBundleIdentifier':'ch.peaks.easy-glucose','CFBundleVersion':version,
+            'CFBundleShortVersionString':version,'CFBundlePackageType':'APPL',
             'CFBundleExecutable':'easy-glucose','CFBundleIconFile':'AppIcon',
             'NSHighResolutionCapable':True,'LSMinimumSystemVersion':'12.0',
             'NSHumanReadableCopyright':'Copyright 2026 Easy Glucose contributors'}, f)
