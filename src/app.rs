@@ -39,6 +39,7 @@ pub struct App {
     quit: bool,
     hidden: bool,
     first_frame: bool,
+    widget_was_open: bool,
     background: bool,
 }
 impl App {
@@ -92,6 +93,7 @@ impl App {
             quit: false,
             hidden: false,
             first_frame: true,
+            widget_was_open: false,
             background,
         };
         if demo {
@@ -436,7 +438,9 @@ impl eframe::App for App {
             if !self.config.always_on_top {
                 builder = builder.with_window_level(egui::WindowLevel::Normal);
             }
-            if let Some(pos) = self.config.widget_position {
+            // Restore once per opening. Feeding live coordinates back into the builder
+            // can issue new native move commands while the user is dragging.
+            if !self.widget_was_open && let Some(pos) = self.config.widget_position {
                 builder = builder.with_position(pos);
             }
             if self.reset_widget {
@@ -450,6 +454,7 @@ impl eframe::App for App {
                 ui::widget::show(self, ctx);
             });
         }
+        self.widget_was_open = self.config.widget_open;
         if self.popover.open {
             let id = egui::ViewportId::from_hash_of("menubar_graph");
             let builder = egui::ViewportBuilder::default()
