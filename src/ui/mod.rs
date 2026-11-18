@@ -6,6 +6,29 @@ pub mod theme;
 pub mod widget;
 use eframe::egui::{self, RichText};
 
+pub fn centered_column(ui: &mut egui::Ui, max_width: f32, content: impl FnOnce(&mut egui::Ui)) {
+    let width = ui.available_width().min(max_width);
+    ui.vertical_centered(|ui| {
+        ui.allocate_ui_with_layout(
+            egui::vec2(width, 0.0),
+            egui::Layout::top_down(egui::Align::Min),
+            content,
+        );
+    });
+}
+
+pub fn history_period(ui: &mut egui::Ui, hours: &mut u8) -> bool {
+    let labels = crate::storage::Config::HISTORY_PERIODS
+        .map(|h| (h, format!("{h} {}", crate::i18n::Text::Hour.get())));
+    segments(
+        ui,
+        hours,
+        &labels
+            .each_ref()
+            .map(|(h, label)| (*h, Segment::Text(label))),
+    )
+}
+
 pub fn eyebrow(ui: &mut egui::Ui, text: &str) {
     ui.label(
         RichText::new(text)
@@ -23,22 +46,17 @@ pub fn muted(ui: &mut egui::Ui, text: impl Into<String>) {
 }
 pub fn primary(ui: &mut egui::Ui, text: &str) -> egui::Response {
     ui.add(
-        egui::Button::new(
-            RichText::new(text)
-                .color(egui::Color32::WHITE)
-                .size(14.0)
-                .strong(),
-        )
-        .fill(theme::ACCENT)
-        .corner_radius(9)
-        .min_size(egui::vec2(0.0, 44.0)),
+        egui::Button::new(RichText::new(text).color(egui::Color32::WHITE).size(13.0))
+            .fill(theme::ACCENT)
+            .corner_radius(6)
+            .min_size(egui::vec2(0.0, 28.0)),
     )
 }
 pub fn pill(ui: &mut egui::Ui, text: &str, color: egui::Color32) {
     egui::Frame::new()
         .fill(color.gamma_multiply(0.12))
         .corner_radius(6)
-        .inner_margin(egui::Margin::symmetric(9, 5))
+        .inner_margin(egui::Margin::symmetric(7, 2))
         .show(ui, |ui| {
             ui.label(
                 RichText::new(text)
@@ -55,48 +73,28 @@ pub fn logo(ui: &mut egui::Ui, size: f32) {
     );
 }
 
-/// A choice is visibly a button even before hover. Selection has both color and a check.
-pub fn choice<T: PartialEq + Copy>(
+pub fn tool_icon(ui: &egui::Ui, source: egui::ImageSource<'static>) -> egui::Image<'static> {
+    egui::Image::new(source)
+        .fit_to_exact_size(egui::Vec2::splat(17.0))
+        .tint(theme::palette(ui.ctx()).muted)
+}
+
+pub fn tool_button(
     ui: &mut egui::Ui,
-    value: &mut T,
-    candidate: T,
+    button: egui::Button<'_>,
     label: &str,
-    width: f32,
-) -> bool {
-    let selected = *value == candidate;
-    let p = theme::palette(ui.ctx());
-    let text = if selected {
-        format!("✓  {label}")
-    } else {
-        label.into()
-    };
-    let response = ui.add_sized(
-        [width, 42.0],
-        egui::Button::new(RichText::new(text).color(if selected {
-            egui::Color32::WHITE
-        } else {
-            p.text
-        }))
-        .fill(if selected { theme::ACCENT } else { p.secondary })
-        .stroke(egui::Stroke::new(
-            1.0_f32,
-            if selected { theme::ACCENT } else { p.line },
-        )),
+    enabled: bool,
+) -> egui::Response {
+    let response = ui.add_enabled(
+        enabled,
+        button
+            .frame_when_inactive(false)
+            .min_size(egui::vec2(26.0, 24.0)),
     );
     response.widget_info(|| {
-        egui::WidgetInfo::selected(
-            egui::WidgetType::RadioButton,
-            ui.is_enabled(),
-            selected,
-            label,
-        )
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, response.enabled(), label)
     });
-    if response.clicked() && !selected {
-        *value = candidate;
-        true
-    } else {
-        false
-    }
+    response.on_hover_text(label)
 }
 
 pub enum Segment<'a> {
@@ -120,7 +118,7 @@ pub fn segments<T: Copy + PartialEq>(
     options: &[(T, Segment<'_>)],
 ) -> bool {
     let p = theme::palette(ui.ctx());
-    let font = egui::FontId::proportional(14.0);
+    let font = egui::FontId::proportional(12.0);
     let painter = ui.painter().clone();
     let width = options
         .iter()
@@ -130,17 +128,17 @@ pub fn segments<T: Copy + PartialEq>(
                     .layout_no_wrap((*label).into(), font.clone(), p.text)
                     .size()
                     .x
-                    + 22.0
+                    + 16.0
             }
-            Segment::Window(_) => 52.0,
+            Segment::Window(_) => 45.0,
         })
-        .fold(42.0_f32, f32::max)
+        .fold(35.0_f32, f32::max)
         .ceil();
     let (track, group) = ui.allocate_exact_size(
-        egui::vec2(4.0 + width * options.len() as f32, 34.0),
+        egui::vec2(4.0 + width * options.len() as f32, 27.0),
         egui::Sense::hover(),
     );
-    painter.rect_filled(track, 8, p.secondary);
+    painter.rect_filled(track, 7, p.secondary);
     let mut changed = false;
     for (index, (candidate, option)) in options.iter().enumerate() {
         let rect = egui::Rect::from_min_size(
@@ -166,7 +164,7 @@ pub fn segments<T: Copy + PartialEq>(
             )
         });
         if selected || response.hovered() {
-            painter.rect_filled(rect, 6, p.surface);
+            painter.rect_filled(rect, 5, p.surface);
         }
         if selected || response.has_focus() {
             let stroke = if response.has_focus() {
@@ -174,7 +172,7 @@ pub fn segments<T: Copy + PartialEq>(
             } else {
                 egui::Stroke::new(1.0_f32, p.line)
             };
-            painter.rect_stroke(rect, 6, stroke, egui::StrokeKind::Inside);
+            painter.rect_stroke(rect, 5, stroke, egui::StrokeKind::Inside);
         }
         let ink = if selected {
             theme::ink(ui.ctx(), theme::ACCENT)
@@ -194,7 +192,7 @@ pub fn segments<T: Copy + PartialEq>(
             Segment::Window(size) => {
                 let window = egui::Rect::from_center_size(
                     rect.center(),
-                    egui::Vec2::from(size.dimensions()) * 0.074,
+                    egui::Vec2::from(size.dimensions()) * 0.062,
                 );
                 let stroke = egui::Stroke::new(1.5_f32, ink);
                 painter.rect_stroke(window, 2, stroke, egui::StrokeKind::Inside);
@@ -213,13 +211,39 @@ pub fn segments<T: Copy + PartialEq>(
     changed
 }
 
+pub const SETTINGS_ROW_HEIGHT: f32 = 40.0;
+
 pub fn switch(ui: &mut egui::Ui, value: &mut bool, title: &str, hint: &str) -> egui::Response {
     let p = theme::palette(ui.ctx());
-    let height = if hint.is_empty() { 42.0 } else { 54.0 };
+    let width = ui.available_width();
+    // Let translated descriptions wrap before the switch, including at minimum window width.
+    let painter = ui.painter().clone();
+    let text_width = (width - 44.0).max(1.0);
+    let title_text = painter.layout(
+        title.to_owned(),
+        egui::TextStyle::Body.resolve(ui.style()),
+        p.text,
+        text_width,
+    );
+    let help = (!hint.is_empty()).then(|| {
+        painter.layout(
+            hint.to_owned(),
+            egui::FontId::proportional(12.0),
+            p.muted,
+            text_width,
+        )
+    });
+    let text_height = title_text.size().y + help.as_ref().map_or(0.0, |g| 2.0 + g.size().y);
     let (rect, mut response) = ui.allocate_exact_size(
-        egui::vec2(ui.available_width(), height),
+        egui::vec2(width, SETTINGS_ROW_HEIGHT.max(text_height + 8.0)),
         egui::Sense::click(),
     );
+    let top = egui::pos2(rect.left(), rect.center().y - text_height * 0.5);
+    let help_top = top + egui::vec2(0.0, title_text.size().y + 2.0);
+    painter.galley(top, title_text, p.text);
+    if let Some(help) = help {
+        painter.galley(help_top, help, p.muted);
+    }
     if response.clicked() {
         *value = !*value;
         response.mark_changed();
@@ -227,48 +251,24 @@ pub fn switch(ui: &mut egui::Ui, value: &mut bool, title: &str, hint: &str) -> e
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::WidgetType::Checkbox, ui.is_enabled(), *value, title)
     });
-    if response.hovered() || response.has_focus() {
-        ui.painter().rect_filled(rect, 9, p.secondary);
-    }
-    if response.has_focus() {
-        ui.painter().rect_stroke(
-            rect,
-            9,
-            egui::Stroke::new(1.5_f32, theme::ACCENT),
-            egui::StrokeKind::Inside,
-        );
-    }
-    let y = if hint.is_empty() {
-        rect.center().y
-    } else {
-        rect.top() + 19.0
-    };
-    ui.painter().text(
-        egui::pos2(rect.left(), y),
-        egui::Align2::LEFT_CENTER,
-        title,
-        egui::FontId::proportional(15.0),
-        p.text,
-    );
-    if !hint.is_empty() {
-        ui.painter().text(
-            rect.left_top() + egui::vec2(0.0, 37.0),
-            egui::Align2::LEFT_CENTER,
-            hint,
-            egui::FontId::proportional(12.0),
-            p.muted,
-        );
-    }
     let track = egui::Rect::from_center_size(
-        egui::pos2(rect.right() - 22.0, rect.center().y),
-        egui::vec2(44.0, 26.0),
+        egui::pos2(rect.right() - 16.0, rect.center().y),
+        egui::vec2(32.0, 19.0),
     );
     ui.painter()
-        .rect_filled(track, 14, if *value { theme::ACCENT } else { p.line });
+        .rect_filled(track, 10, if *value { theme::ACCENT } else { p.line });
+    if response.has_focus() {
+        ui.painter().rect_stroke(
+            track.expand(2.0),
+            12,
+            egui::Stroke::new(1.5, theme::ACCENT),
+            egui::StrokeKind::Outside,
+        );
+    }
     let fraction = ui.ctx().animate_bool_with_time(response.id, *value, 0.1);
     ui.painter().circle_filled(
-        egui::pos2(track.left() + 13.0 + fraction * 18.0, track.center().y),
-        10.0,
+        egui::pos2(track.left() + 9.5 + fraction * 13.0, track.center().y),
+        7.5,
         egui::Color32::WHITE,
     );
     response.on_hover_cursor(egui::CursorIcon::PointingHand)
@@ -276,14 +276,14 @@ pub fn switch(ui: &mut egui::Ui, value: &mut bool, title: &str, hint: &str) -> e
 
 pub fn group<R>(ui: &mut egui::Ui, title: &str, content: impl FnOnce(&mut egui::Ui) -> R) -> R {
     let p = theme::palette(ui.ctx());
+    ui.label(RichText::new(title).size(13.0).strong());
     egui::Frame::new()
         .fill(p.surface)
-        .corner_radius(14)
-        .inner_margin(16)
+        .stroke(egui::Stroke::new(0.7, p.line))
+        .corner_radius(10)
+        .inner_margin(12)
         .show(ui, |ui| {
             ui.set_min_width(ui.available_width());
-            ui.label(RichText::new(title).size(18.0).strong());
-            ui.add_space(6.0);
             content(ui)
         })
         .inner

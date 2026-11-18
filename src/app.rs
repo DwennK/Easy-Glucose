@@ -290,31 +290,53 @@ impl App {
         egui::TopBottomPanel::top("navigation")
             .frame(
                 egui::Frame::new()
-                    .fill(p.surface)
-                    .inner_margin(egui::Margin::symmetric(28, 16)),
+                    .fill(p.bg)
+                    .inner_margin(egui::Margin::symmetric(16, 7)),
             )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui::logo(ui, 32.0);
-                    ui.label(RichText::new("Easy Glucose").size(20.0).strong());
-                    if self.page != Page::Onboarding {
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui::choice(
-                                ui,
-                                &mut self.page,
-                                Page::Settings,
-                                Text::Settings.get(),
-                                150.0,
-                            );
-                            ui::choice(
-                                ui,
-                                &mut self.page,
-                                Page::Dashboard,
-                                Text::Dashboard.get(),
-                                170.0,
-                            );
-                        });
+                    // Leave the native macOS traffic lights in their usual title-bar position.
+                    if cfg!(target_os = "macos")
+                        && !ctx.input(|i| i.viewport().fullscreen.unwrap_or(false))
+                    {
+                        ui.add_space(72.0);
                     }
+                    if self.page == Page::Onboarding {
+                        ui::logo(ui, 19.0);
+                        ui.label("Easy Glucose");
+                        return;
+                    }
+                    let on_dashboard = self.page == Page::Dashboard;
+                    let title = if on_dashboard {
+                        Text::Dashboard
+                    } else {
+                        Text::Settings
+                    };
+                    ui.label(RichText::new(title.get()).strong().size(16.0));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let (icon, target, label) = if on_dashboard {
+                            (
+                                egui::include_image!("../assets/settings.svg"),
+                                Page::Settings,
+                                Text::Settings,
+                            )
+                        } else {
+                            (
+                                egui::include_image!("../assets/dashboard.svg"),
+                                Page::Dashboard,
+                                Text::Dashboard,
+                            )
+                        };
+                        let button =
+                            egui::Button::image_and_text(ui::tool_icon(ui, icon), label.get());
+                        if ui::tool_button(ui, button, label.get(), true).clicked() {
+                            self.page = target;
+                        }
+                        if on_dashboard {
+                            ui.separator();
+                            ui::dashboard::toolbar(self, ui);
+                        }
+                    });
                 });
             });
     }
@@ -383,8 +405,12 @@ impl eframe::App for App {
         egui::CentralPanel::default()
             .frame(
                 egui::Frame::new()
-                    .fill(theme::palette(ctx).bg)
-                    .inner_margin(egui::Margin::symmetric(24, 24)),
+                    .fill(if self.page == Page::Dashboard {
+                        theme::palette(ctx).surface
+                    } else {
+                        theme::palette(ctx).bg
+                    })
+                    .inner_margin(egui::Margin::symmetric(18, 14)),
             )
             .show(ctx, |ui| {
                 if let Some(message) = self.notice.clone() {
@@ -403,14 +429,7 @@ impl eframe::App for App {
                     ui.add_space(10.0);
                 }
                 if self.page == Page::Settings {
-                    let available = ui.available_width();
-                    ui.horizontal(|ui| {
-                        ui.add_space(((available - 800.0) / 2.0).max(0.0));
-                        ui.vertical(|ui| {
-                            ui.set_width(available.min(800.0));
-                            ui::settings::header(self, ui);
-                        });
-                    });
+                    ui::centered_column(ui, 700.0, |ui| ui::settings::header(self, ui));
                     ui.add_space(12.0);
                 }
                 egui::ScrollArea::vertical()
@@ -429,21 +448,14 @@ impl eframe::App for App {
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
                         let width = match self.page {
-                            Page::Dashboard => 640.0,
-                            Page::Settings => 800.0,
-                            Page::Onboarding => 620.0,
+                            Page::Dashboard => 860.0,
+                            Page::Settings => 700.0,
+                            Page::Onboarding => 560.0,
                         };
-                        let available = ui.available_width();
-                        ui.horizontal(|ui| {
-                            ui.add_space(((available - width) / 2.0).max(0.0));
-                            ui.vertical(|ui| {
-                                ui.set_width(available.min(width));
-                                match self.page {
-                                    Page::Dashboard => ui::dashboard::show(self, ui),
-                                    Page::Settings => ui::settings::show(self, ui),
-                                    Page::Onboarding => ui::settings::onboarding(self, ui),
-                                }
-                            });
+                        ui::centered_column(ui, width, |ui| match self.page {
+                            Page::Dashboard => ui::dashboard::show(self, ui),
+                            Page::Settings => ui::settings::show(self, ui),
+                            Page::Onboarding => ui::settings::onboarding(self, ui),
                         });
                     });
             });

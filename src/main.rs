@@ -45,8 +45,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // App::update makes only the root window opaque on its first frame;
             // the menu popup still needs this alpha-capable GL configuration.
             .with_transparent(cfg!(target_os = "macos"))
-            .with_inner_size([1120.0, 800.0])
-            .with_min_inner_size([900.0, 660.0])
+            .with_fullsize_content_view(cfg!(target_os = "macos"))
+            .with_titlebar_shown(!cfg!(target_os = "macos"))
+            .with_title_shown(!cfg!(target_os = "macos"))
+            .with_inner_size([600.0, 570.0])
+            .with_min_inner_size([510.0, 440.0])
             .with_icon(egui::IconData {
                 rgba: icon_rgba(64, false),
                 width: 64,

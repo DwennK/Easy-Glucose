@@ -30,6 +30,65 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
     if app.config.provider != previous {
         app.select_source(app.config.provider);
     }
+    let connected = matches!(app.snapshot.state, State::Connected | State::Empty)
+        || (app.snapshot.state == State::Syncing && app.snapshot.last_sync.is_some());
+    if connected {
+        ui.horizontal_wrapped(|ui| {
+            ui::pill(
+                ui,
+                &format!(
+                    "✓  {} · {}",
+                    app.config.provider.label(),
+                    Text::Connected.get()
+                ),
+                theme::GREEN,
+            );
+            if app.snapshot.state != State::Connected {
+                ui::muted(ui, app.snapshot.state.label());
+            }
+        });
+    } else {
+        ui::muted(
+            ui,
+            format!(
+                "{} · {}",
+                app.config.provider.label(),
+                app.snapshot.state.label()
+            ),
+        );
+    }
+    if let Some(name) = &app.snapshot.patient_name {
+        ui::muted(ui, format!("{} · {name}", Text::Following.get()));
+    }
+    if let Some(error) = &app.snapshot.error {
+        ui.colored_label(
+            theme::ink(ui.ctx(), theme::ORANGE),
+            crate::i18n::notice(error),
+        );
+    }
+    if let Some(next) = app.snapshot.next_sync {
+        ui::muted(
+            ui,
+            format!(
+                "{} · {}",
+                Text::NextSync.get(),
+                next.with_timezone(&chrono::Local).format("%H:%M")
+            ),
+        );
+    }
+    if connected {
+        ui.collapsing(Text::ChangeAccount.get(), |ui| sign_in_form(app, ui));
+    } else {
+        sign_in_form(app, ui);
+    }
+    if !matches!(app.snapshot.state, State::Disconnected | State::Simulation)
+        && ui.button(Text::Disconnect.get()).clicked()
+    {
+        app.disconnect();
+    }
+}
+
+fn sign_in_form(app: &mut App, ui: &mut egui::Ui) {
     ui.add_space(4.0);
     ui::muted(
         ui,
@@ -49,7 +108,7 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
                 patient.name
             };
             if ui
-                .add_sized([ui.available_width(), 44.0], egui::Button::new(label))
+                .add_sized([ui.available_width(), 30.0], egui::Button::new(label))
                 .clicked()
             {
                 app.select_patient(patient.id);
@@ -85,7 +144,7 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
             egui::TextEdit::singleline(&mut app.source_url)
                 .hint_text("https://example.org")
                 .desired_width(f32::INFINITY)
-                .margin(egui::vec2(12.0, 10.0)),
+                .margin(egui::vec2(8.0, 6.0)),
         );
         row(ui, Text::Access.get(), |ui| {
             egui::ComboBox::from_id_salt("nightscout_auth")
@@ -137,7 +196,7 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
                     "name@example.org"
                 })
                 .desired_width(f32::INFINITY)
-                .margin(egui::vec2(12.0, 10.0)),
+                .margin(egui::vec2(8.0, 6.0)),
         );
         ui.label(Text::Password.get());
     }
@@ -150,7 +209,7 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
                 Text::PasswordHint.get()
             })
             .desired_width(f32::INFINITY)
-            .margin(egui::vec2(12.0, 10.0)),
+            .margin(egui::vec2(8.0, 6.0)),
     );
     ui::muted(ui, Text::KeyringHelp.get());
     let ready = if nightscout {
@@ -173,11 +232,6 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
         {
             app.connect();
         }
-        if !matches!(app.snapshot.state, State::Disconnected | State::Simulation)
-            && ui.button(Text::Disconnect.get()).clicked()
-        {
-            app.disconnect();
-        }
         if matches!(
             app.snapshot.state,
             State::ActionRequired | State::InvalidCredentials | State::Offline
@@ -192,33 +246,6 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
             app.send(Command::Retry);
         }
     });
-    ui::muted(
-        ui,
-        format!(
-            "{} · {}",
-            app.config.provider.label(),
-            app.snapshot.state.label()
-        ),
-    );
-    if let Some(name) = &app.snapshot.patient_name {
-        ui::muted(ui, format!("{} · {name}", Text::Following.get()));
-    }
-    if let Some(error) = &app.snapshot.error {
-        ui.colored_label(
-            theme::ink(ui.ctx(), theme::ORANGE),
-            crate::i18n::notice(error),
-        );
-    }
-    if let Some(next) = app.snapshot.next_sync {
-        ui::muted(
-            ui,
-            format!(
-                "{} · {}",
-                Text::NextSync.get(),
-                next.with_timezone(&chrono::Local).format("%H:%M")
-            ),
-        );
-    }
 }
 
 pub fn onboarding(app: &mut App, ui: &mut egui::Ui) {
@@ -245,18 +272,15 @@ pub fn onboarding(app: &mut App, ui: &mut egui::Ui) {
 }
 
 pub fn header(app: &mut App, ui: &mut egui::Ui) {
-    ui.heading(Text::Settings.get());
-    ui.add_space(12.0);
-    let width = (ui.available_width() - 20.0) / 3.0;
-    ui.horizontal(|ui| {
-        for (tab, title) in [
-            (0, Text::Display.get()),
-            (1, Text::Sources.get()),
-            (2, Text::Advanced.get()),
-        ] {
-            ui::choice(ui, &mut app.settings_tab, tab, title, width);
-        }
-    });
+    ui::segments(
+        ui,
+        &mut app.settings_tab,
+        &[
+            (0, Segment::Text(Text::Display.get())),
+            (1, Segment::Text(Text::Sources.get())),
+            (2, Segment::Text(Text::Advanced.get())),
+        ],
+    );
 }
 
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
@@ -336,17 +360,19 @@ pub fn account_dialog(app: &mut App, ctx: &egui::Context) {
     let modal = egui::Modal::new(egui::Id::new("account_dialog"))
         .frame(egui::Frame::window(&ctx.style()).inner_margin(20))
         .show(ctx, |ui| {
-            ui.set_width(470.0);
+            ui.set_width((ctx.content_rect().width() - 64.0).min(440.0));
             ui.horizontal(|ui| {
-                ui.label(RichText::new(Text::Sources.get()).size(24.0).strong());
+                ui.label(RichText::new(Text::Sources.get()).size(18.0).strong());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button(Text::Close.get()).clicked() {
                         app.account_open = false;
                     }
                 });
             });
-            ui.add_space(12.0);
-            account(app, ui);
+            ui.add_space(4.0);
+            egui::ScrollArea::vertical()
+                .max_height((ctx.content_rect().height() - 88.0).max(150.0))
+                .show(ui, |ui| account(app, ui));
         });
     if modal.should_close() {
         app.account_open = false;
@@ -489,22 +515,22 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
 
 fn row(ui: &mut egui::Ui, label: &str, content: impl FnOnce(&mut egui::Ui)) {
     ui.horizontal(|ui| {
-        ui.set_min_height(36.0);
+        ui.set_min_height(ui::SETTINGS_ROW_HEIGHT);
         ui.label(label);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), content);
     });
 }
 fn bound(ui: &mut egui::Ui, label: &str, value: &mut u16, min: u16, max: u16, unit: Unit) {
     row(ui, label, |ui| {
-        let width = if unit == Unit::Mmol { 303.0 } else { 214.0 };
+        let width = if unit == Unit::Mmol { 250.0 } else { 162.0 };
         ui.allocate_ui_with_layout(
-            egui::vec2(width, 42.0),
+            egui::vec2(width, 26.0),
             egui::Layout::left_to_right(egui::Align::Center),
             |ui| {
                 if ui
                     .add_enabled(
                         *value > min,
-                        egui::Button::new("−").min_size(egui::vec2(42.0, 42.0)),
+                        egui::Button::new("−").min_size(egui::vec2(26.0, 26.0)),
                     )
                     .on_hover_text(Text::Decrease.get())
                     .clicked()
@@ -512,7 +538,7 @@ fn bound(ui: &mut egui::Ui, label: &str, value: &mut u16, min: u16, max: u16, un
                     *value = value.saturating_sub(1).max(min);
                 }
                 ui.add_sized(
-                    [110.0, 42.0],
+                    [84.0, 26.0],
                     egui::DragValue::new(value)
                         .range(min..=max)
                         .suffix(" mg/dL")
@@ -522,7 +548,7 @@ fn bound(ui: &mut egui::Ui, label: &str, value: &mut u16, min: u16, max: u16, un
                 if ui
                     .add_enabled(
                         *value < max,
-                        egui::Button::new("+").min_size(egui::vec2(42.0, 42.0)),
+                        egui::Button::new("+").min_size(egui::vec2(26.0, 26.0)),
                     )
                     .on_hover_text(Text::Increase.get())
                     .clicked()

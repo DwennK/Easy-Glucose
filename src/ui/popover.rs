@@ -2,7 +2,6 @@ use crate::i18n::Text;
 use crate::{
     app::{App, Page},
     services::State,
-    storage::Config,
     ui::{self, dashboard, theme},
 };
 use eframe::egui::{self, RichText};
@@ -13,7 +12,6 @@ pub const SIZE: egui::Vec2 = egui::vec2(420.0, 382.0);
 pub struct Popover {
     pub open: bool,
     pub position: egui::Pos2,
-    pub hours: u8,
     focused_once: bool,
     position_pending: bool,
     closed_at: Option<Instant>,
@@ -23,7 +21,6 @@ impl Default for Popover {
         Self {
             open: false,
             position: egui::Pos2::ZERO,
-            hours: 3,
             focused_once: false,
             position_pending: false,
             closed_at: None,
@@ -128,30 +125,41 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 ui::logo(ui, 18.0);
                 ui.label(RichText::new("Easy Glucose").strong().size(14.0));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if header_button(ui, egui::Button::new("×"), Text::ClosePreview.get()).clicked()
+                    if ui::tool_button(
+                        ui,
+                        egui::Button::image(ui::tool_icon(
+                            ui,
+                            egui::include_image!("../../assets/close.svg"),
+                        )),
+                        Text::ClosePreview.get(),
+                        true,
+                    )
+                    .clicked()
                     {
                         app.popover.close(now);
                     }
-                    if header_button(
+                    if ui::tool_button(
                         ui,
-                        egui::Button::image(
-                            egui::Image::new(egui::include_image!("../../assets/settings.svg"))
-                                .fit_to_exact_size(egui::vec2(16.0, 16.0)),
-                        ),
+                        egui::Button::image(ui::tool_icon(
+                            ui,
+                            egui::include_image!("../../assets/settings.svg"),
+                        )),
                         Text::Settings.get(),
+                        true,
                     )
                     .clicked()
                     {
                         app.show_dashboard();
                         app.page = Page::Settings;
                     }
-                    if header_button(
+                    if ui::tool_button(
                         ui,
-                        egui::Button::image(
-                            egui::Image::new(egui::include_image!("../../assets/dashboard.svg"))
-                                .fit_to_exact_size(egui::vec2(16.0, 16.0)),
-                        ),
+                        egui::Button::image(ui::tool_icon(
+                            ui,
+                            egui::include_image!("../../assets/dashboard.svg"),
+                        )),
                         Text::OpenApp.get(),
+                        true,
                     )
                     .clicked()
                     {
@@ -216,41 +224,10 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 ui.label(RichText::new(Text::History.get()).size(12.0).color(p.muted));
                 ui.add_space(4.0);
                 ui.spacing_mut().item_spacing.x = 4.0;
-                for hours in Config::HISTORY_PERIODS {
-                    let selected = app.popover.hours == hours;
-                    let label = format!("{hours} {}", Text::Hour.get());
-                    let response = ui.add_sized(
-                        [48.0, 26.0],
-                        egui::Button::selectable(
-                            selected,
-                            RichText::new(&label).size(12.0).color(if selected {
-                                egui::Color32::WHITE
-                            } else {
-                                p.text
-                            }),
-                        )
-                        .fill(if selected { theme::ACCENT } else { p.secondary })
-                        .stroke(egui::Stroke::new(
-                            1.0_f32,
-                            if selected { theme::ACCENT } else { p.line },
-                        ))
-                        .corner_radius(5),
-                    );
-                    response.widget_info(|| {
-                        egui::WidgetInfo::selected(
-                            egui::WidgetType::RadioButton,
-                            ui.is_enabled(),
-                            selected,
-                            &label,
-                        )
-                    });
-                    if response.clicked() {
-                        app.popover.hours = hours;
-                    }
+                if ui::history_period(ui, &mut app.config.period_hours) {
+                    app.mark_config();
                 }
             });
-            let mut config = app.config.clone();
-            config.period_hours = app.popover.hours;
             let height = (ui.available_height()
                 - if app.snapshot.readings.is_empty() {
                     24.0
@@ -262,7 +239,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 ui,
                 "menubar_chart",
                 &app.snapshot.readings,
-                &config,
+                &app.config,
                 height,
                 false,
             );
@@ -271,14 +248,6 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
         ctx.request_repaint_of(egui::ViewportId::ROOT);
     }
     ctx.request_repaint_after(Duration::from_secs(30));
-}
-
-fn header_button(ui: &mut egui::Ui, button: egui::Button<'_>, label: &str) -> egui::Response {
-    let response = ui.add_sized([30.0, 26.0], button);
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label)
-    });
-    response.on_hover_text(label)
 }
 
 #[cfg(test)]

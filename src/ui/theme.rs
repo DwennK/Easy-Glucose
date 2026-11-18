@@ -1,6 +1,6 @@
 use crate::storage::Theme;
 use eframe::egui::{self, Color32, FontId, TextStyle};
-pub const ACCENT: Color32 = Color32::from_rgb(55, 112, 225);
+pub const ACCENT: Color32 = Color32::from_rgb(0, 102, 204);
 pub const GREEN: Color32 = Color32::from_rgb(45, 178, 126);
 pub const ORANGE: Color32 = Color32::from_rgb(232, 166, 66);
 pub const RED: Color32 = Color32::from_rgb(230, 100, 112);
@@ -16,21 +16,21 @@ pub struct Palette {
 fn colors(dark: bool) -> Palette {
     if dark {
         Palette {
-            bg: Color32::from_rgb(17, 23, 32),
-            surface: Color32::from_rgb(25, 34, 46),
-            secondary: Color32::from_rgb(38, 50, 66),
-            text: Color32::from_rgb(241, 245, 251),
-            muted: Color32::from_rgb(170, 183, 202),
-            line: Color32::from_rgb(67, 83, 105),
+            bg: Color32::from_rgb(30, 30, 32),
+            surface: Color32::from_rgb(40, 40, 42),
+            secondary: Color32::from_rgb(58, 58, 61),
+            text: Color32::from_rgb(242, 242, 245),
+            muted: Color32::from_rgb(183, 183, 190),
+            line: Color32::from_rgb(79, 79, 84),
         }
     } else {
         Palette {
-            bg: Color32::from_rgb(244, 246, 249),
+            bg: Color32::from_rgb(245, 245, 247),
             surface: Color32::WHITE,
-            secondary: Color32::from_rgb(235, 240, 248),
-            text: Color32::from_rgb(28, 41, 60),
-            muted: Color32::from_rgb(95, 110, 132),
-            line: Color32::from_rgb(190, 202, 219),
+            secondary: Color32::from_rgb(233, 233, 237),
+            text: Color32::from_rgb(30, 30, 33),
+            muted: Color32::from_rgb(96, 96, 104),
+            line: Color32::from_rgb(207, 207, 212),
         }
     }
 }
@@ -79,23 +79,23 @@ pub fn apply(ctx: &egui::Context, theme: Theme) {
             s.visuals.selection.bg_fill = ACCENT;
             s.visuals.selection.stroke = egui::Stroke::new(1.0_f32, Color32::WHITE);
             let idle = &mut s.visuals.widgets.inactive;
-            idle.bg_fill = p.secondary;
-            idle.weak_bg_fill = p.secondary;
+            idle.bg_fill = p.surface;
+            idle.weak_bg_fill = p.surface;
             idle.bg_stroke = egui::Stroke::new(1.0_f32, p.line);
             idle.fg_stroke = egui::Stroke::new(1.2_f32, p.text);
             let hovered = &mut s.visuals.widgets.hovered;
             hovered.bg_fill = if dark {
-                Color32::from_rgb(45, 66, 94)
+                Color32::from_rgb(70, 70, 74)
             } else {
-                Color32::from_rgb(219, 232, 255)
+                Color32::from_rgb(226, 226, 231)
             };
             hovered.weak_bg_fill = hovered.bg_fill;
-            hovered.bg_stroke = egui::Stroke::new(1.5_f32, ACCENT);
+            hovered.bg_stroke = egui::Stroke::new(1.0_f32, p.line);
             hovered.fg_stroke = egui::Stroke::new(1.5_f32, p.text);
             let active = &mut s.visuals.widgets.active;
             active.bg_fill = p.secondary;
             active.weak_bg_fill = p.secondary;
-            active.bg_stroke = egui::Stroke::new(1.5_f32, ACCENT);
+            active.bg_stroke = egui::Stroke::new(1.0_f32, p.line);
             active.fg_stroke = egui::Stroke::new(1.5_f32, p.text);
             s.visuals.widgets.noninteractive.bg_stroke =
                 egui::Stroke::new(1.0_f32, p.line.gamma_multiply(0.45));
@@ -105,23 +105,23 @@ pub fn apply(ctx: &egui::Context, theme: Theme) {
                 &mut s.visuals.widgets.hovered,
                 &mut s.visuals.widgets.active,
             ] {
-                w.corner_radius = egui::CornerRadius::same(10);
+                w.corner_radius = egui::CornerRadius::same(6);
             }
-            s.spacing.item_spacing = egui::vec2(10.0, 10.0);
-            s.spacing.button_padding = egui::vec2(16.0, 11.0);
-            s.spacing.interact_size = egui::vec2(40.0, 40.0);
-            s.spacing.combo_width = 240.0;
-            s.visuals.window_corner_radius = egui::CornerRadius::same(18);
+            s.spacing.item_spacing = egui::vec2(8.0, 6.0);
+            s.spacing.button_padding = egui::vec2(9.0, 4.0);
+            s.spacing.interact_size = egui::vec2(26.0, 26.0);
+            s.spacing.combo_width = 158.0;
+            s.visuals.window_corner_radius = egui::CornerRadius::same(12);
             s.visuals.window_stroke = egui::Stroke::new(1.0_f32, p.line);
             s.animation_time = 0.1;
             s.text_styles
-                .insert(TextStyle::Body, FontId::proportional(15.0));
+                .insert(TextStyle::Body, FontId::proportional(13.0));
             s.text_styles
-                .insert(TextStyle::Button, FontId::proportional(14.0));
+                .insert(TextStyle::Button, FontId::proportional(13.0));
             s.text_styles
                 .insert(TextStyle::Small, FontId::proportional(12.0));
             s.text_styles
-                .insert(TextStyle::Heading, FontId::proportional(28.0));
+                .insert(TextStyle::Heading, FontId::proportional(20.0));
         });
     }
 }

@@ -22,7 +22,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
         .frame(
             egui::Frame::new()
                 .fill(p.surface)
-                .inner_margin(if compact { 14 } else { 20 })
+                .inner_margin(if compact { 10 } else { 14 })
                 .corner_radius(14),
         )
         .show(ctx, |ui| {
@@ -46,16 +46,53 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                     }),
                 ));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let close = ui.small_button("×").on_hover_text(Text::HideWidget.get());
+                    let close = ui::tool_button(
+                        ui,
+                        egui::Button::image(ui::tool_icon(
+                            ui,
+                            egui::include_image!("../../assets/close.svg"),
+                        )),
+                        Text::HideWidget.get(),
+                        true,
+                    );
                     if close.clicked() {
                         app.config.widget_open = false;
                         app.mark_config();
                     }
-                    let open = ui.small_button("↗").on_hover_text(Text::OpenApp.get());
+                    let open = ui::tool_button(
+                        ui,
+                        egui::Button::image(ui::tool_icon(
+                            ui,
+                            egui::include_image!("../../assets/expand.svg"),
+                        )),
+                        Text::OpenApp.get(),
+                        true,
+                    );
                     if open.clicked() {
                         app.show_dashboard();
                     }
-                    open.rect.left()
+                    let hours = app.config.period_hours;
+                    let period = egui::ComboBox::from_id_salt("widget_history_period")
+                        .width(48.0)
+                        .selected_text(format!("{hours} {}", Text::Hour.get()))
+                        .show_ui(ui, |ui| {
+                            for h in crate::storage::Config::HISTORY_PERIODS {
+                                if ui
+                                    .selectable_value(
+                                        &mut app.config.period_hours,
+                                        h,
+                                        format!("{h} {}", Text::Hour.get()),
+                                    )
+                                    .clicked()
+                                {
+                                    ui.close();
+                                }
+                            }
+                        });
+                    if app.config.period_hours != hours {
+                        app.mark_config();
+                    }
+                    period.response.rect.left()
                 })
                 .inner
             });
@@ -161,11 +198,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 "widget_chart",
                 &app.snapshot.readings,
                 &app.config,
-                if compact {
-                    22.0
-                } else {
-                    (ui.available_height() - 6.0).max(35.0)
-                },
+                ui.available_height().max(if compact { 20.0 } else { 35.0 }),
                 true,
             );
             if ctx.input(|i| i.viewport().close_requested()) {

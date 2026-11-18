@@ -12,6 +12,9 @@ use chrono::{Local, Utc};
 use eframe::egui::{self, RichText};
 use egui_plot::{HLine, Plot, PlotPoints, Points, Polygon, VLine};
 
+const LOW_GUIDE: egui::Color32 = egui::Color32::from_rgb(232, 64, 75);
+const HIGH_GUIDE: egui::Color32 = egui::Color32::from_rgb(233, 184, 32);
+
 pub fn reading_color(app: &App) -> egui::Color32 {
     let p = theme::palette(&app.ctx);
     match app.snapshot.readings.last() {
@@ -59,48 +62,47 @@ fn relative_age(age: i64) -> String {
     }
 }
 
-pub fn show(app: &mut App, ui: &mut egui::Ui) {
-    let p = theme::palette(ui.ctx());
-    ui.horizontal(|ui| {
-        ui.heading(Text::Dashboard.get());
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui
-                .button(if app.config.widget_open {
-                    Text::HideWidget.get()
-                } else {
-                    Text::ShowWidget.get()
-                })
-                .clicked()
-            {
-                app.config.widget_open = !app.config.widget_open;
-                app.mark_config();
-            }
-            let enabled = !matches!(
-                app.snapshot.state,
-                State::Disconnected
-                    | State::Syncing
-                    | State::Connecting
-                    | State::InvalidCredentials
-                    | State::ActionRequired
-                    | State::SelectingPatient
-            ) && app.last_refresh.elapsed().as_secs() >= 30;
-            if ui
-                .add_enabled(enabled, egui::Button::new(Text::Refresh.get()))
-                .on_hover_text(Text::Fetch.get())
-                .clicked()
-            {
-                app.refresh();
-            }
-        });
-    });
-    ui.add_space(10.0);
-    if app.snapshot.state == State::Simulation {
-        ui.horizontal(|ui| {
-            ui::pill(ui, Text::DemoReadings.get(), theme::ORANGE);
-            ui::muted(ui, Text::DemoDisclaimer.get());
-        });
-        ui.add_space(6.0);
+pub fn toolbar(app: &mut App, ui: &mut egui::Ui) {
+    let label = if app.config.widget_open {
+        Text::HideWidget
+    } else {
+        Text::ShowWidget
+    };
+    let widget = ui::tool_icon(ui, egui::include_image!("../../assets/widget.svg"));
+    if ui::tool_button(
+        ui,
+        egui::Button::image(widget).selected(app.config.widget_open),
+        label.get(),
+        true,
+    )
+    .clicked()
+    {
+        app.config.widget_open = !app.config.widget_open;
+        app.mark_config();
     }
+    let enabled = !matches!(
+        app.snapshot.state,
+        State::Disconnected
+            | State::Syncing
+            | State::Connecting
+            | State::InvalidCredentials
+            | State::ActionRequired
+            | State::SelectingPatient
+    ) && app.last_refresh.elapsed().as_secs() >= 30;
+    let refresh = ui::tool_icon(ui, egui::include_image!("../../assets/refresh.svg"));
+    if ui::tool_button(
+        ui,
+        egui::Button::image(refresh),
+        Text::Refresh.get(),
+        enabled,
+    )
+    .clicked()
+    {
+        app.refresh();
+    }
+}
+
+pub fn show(app: &mut App, ui: &mut egui::Ui) {
     if let Some(error) = &app.snapshot.error {
         ui.colored_label(
             theme::ink(ui.ctx(), theme::ORANGE),
@@ -108,143 +110,158 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         );
         ui.add_space(6.0);
     }
-    egui::Frame::new()
-        .fill(p.surface)
-        .corner_radius(16)
-        .inner_margin(16)
-        .show(ui, |ui| {
-            ui.set_min_width(ui.available_width());
-            ui.horizontal(|ui| {
-                ui.label(RichText::new(Text::Latest.get()).strong());
-                if let Some(reading) = app.snapshot.readings.last()
-                    && !reading.stale(Utc::now())
-                {
-                    let label = if reading.mgdl < app.config.low {
-                        Text::Below
-                    } else if reading.mgdl > app.config.high {
-                        Text::Above
-                    } else {
-                        Text::Within
-                    };
-                    ui::pill(ui, label.get(), reading_color(app));
-                }
-            });
-            if let Some(reading) = app.snapshot.readings.last() {
-                ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new(reading.display(app.config.unit))
-                            .size(58.0)
-                            .strong(),
-                    );
-                    ui.label(
-                        RichText::new(reading.trend.arrow())
-                            .size(34.0)
-                            .color(theme::ink(ui.ctx(), reading_color(app))),
-                    );
-                    ui::muted(ui, app.config.unit.label());
-                    ui.add_space(8.0);
-                    ui.separator();
-                    ui.vertical(|ui| {
-                        ui.spacing_mut().item_spacing.y = 2.0;
-                        ui.label(reading.trend.label());
-                        if let Some((delta, minutes)) = recent_delta(&app.snapshot.readings) {
-                            ui::muted(
-                                ui,
-                                format!(
-                                    "{} {} / {minutes} {}",
-                                    app.config.unit.delta(delta),
-                                    app.config.unit.label(),
-                                    Text::Minute.get()
-                                ),
-                            );
-                        }
-                    });
-                });
-                ui::muted(
-                    ui,
-                    format!(
-                        "{} {}  ·  {}",
-                        Text::Measured.get(),
-                        reading.measured_at.with_timezone(&Local).format("%H:%M"),
-                        freshness(reading)
-                    ),
-                );
-            } else if app.snapshot.state.needs_account() {
-                ui::muted(ui, Text::ConnectHint.get());
-                if ui::primary(ui, Text::ConnectSource.get()).clicked() {
-                    app.account_open = true;
-                }
-            } else {
-                ui::muted(ui, Text::Waiting.get());
-            }
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label(RichText::new(Text::History.get()).size(18.0).strong());
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let durations = Config::HISTORY_PERIODS
-                        .map(|hours| (hours, format!("{hours} {}", Text::Hour.get())));
-                    let options = durations
-                        .each_ref()
-                        .map(|(hours, label)| (*hours, ui::Segment::Text(label)));
-                    if ui::segments(ui, &mut app.config.period_hours, &options) {
-                        app.mark_config();
-                    }
-                });
-            });
-            ui.add_space(14.0);
-            chart(
-                ui,
-                "main_chart",
-                &app.snapshot.readings,
-                &app.config,
-                ui.available_width() / 1.8,
-                false,
+    if let Some(reading) = app.snapshot.readings.last() {
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(reading.display(app.config.unit)).size(52.0));
+            ui::muted(ui, app.config.unit.label());
+            ui.label(
+                RichText::new(reading.trend.arrow())
+                    .size(27.0)
+                    .color(theme::ink(ui.ctx(), reading_color(app))),
             );
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                ui.colored_label(
-                    theme::ink(ui.ctx(), theme::RED),
-                    format!(
-                        "{} · {}",
-                        Text::Low.get(),
-                        app.config.unit.format(app.config.low.into())
-                    ),
-                );
-                ui.colored_label(
-                    theme::ink(ui.ctx(), theme::ORANGE),
-                    format!(
-                        "{} · {} {}",
-                        Text::High.get(),
-                        app.config.unit.format(app.config.high.into()),
-                        app.config.unit.label()
-                    ),
-                );
-            });
+            let delta = recent_delta(&app.snapshot.readings);
+            let width = ui.available_width();
+            ui.allocate_ui_with_layout(
+                egui::vec2(width, if delta.is_some() { 45.0 } else { 18.0 }),
+                egui::Layout::top_down(egui::Align::Max),
+                |ui| {
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    if let Some((change, minutes)) = delta {
+                        let p = theme::palette(ui.ctx());
+                        let mut line = egui::text::LayoutJob::default();
+                        let amount = if change == 0.0 {
+                            app.config.unit.format(0.0)
+                        } else {
+                            app.config.unit.delta(change)
+                        };
+                        line.append(
+                            &amount,
+                            0.0,
+                            egui::TextFormat::simple(egui::FontId::proportional(25.0), p.text),
+                        );
+                        line.append(
+                            app.config.unit.label(),
+                            4.0,
+                            egui::TextFormat::simple(egui::FontId::proportional(13.0), p.muted),
+                        );
+                        ui.label(line);
+                        ui::muted(
+                            ui,
+                            format!(
+                                "{} · {minutes} {}",
+                                reading.trend.label(),
+                                Text::Minute.get()
+                            ),
+                        );
+                    } else {
+                        ui::muted(ui, reading.trend.label());
+                    }
+                },
+            );
         });
-    ui.add_space(8.0);
-    ui.horizontal(|ui| {
-        ui::muted(
-            ui,
-            format!(
-                "{} · {}",
-                app.snapshot.provider.label(),
-                app.snapshot.state.label()
-            ),
-        );
-        if let Some(t) = app.snapshot.last_sync {
+        ui.horizontal_wrapped(|ui| {
+            if app.snapshot.state == State::Simulation {
+                ui.scope(|ui| ui::pill(ui, Text::DemoReadings.get(), theme::ORANGE))
+                    .response
+                    .on_hover_text(Text::DemoDisclaimer.get());
+            }
+            if !reading.stale(Utc::now()) {
+                if reading.mgdl < app.config.low {
+                    ui::pill(ui, Text::Below.get(), theme::RED);
+                } else if reading.mgdl > app.config.high {
+                    ui::pill(ui, Text::Above.get(), theme::ORANGE);
+                }
+            }
             ui::muted(
                 ui,
                 format!(
-                    "· {} {}",
-                    Text::Synced.get(),
-                    t.with_timezone(&Local).format("%H:%M")
+                    "{} {}  ·  {}",
+                    Text::Measured.get(),
+                    reading.measured_at.with_timezone(&Local).format("%H:%M"),
+                    freshness(reading)
                 ),
             );
+        });
+    } else if app.snapshot.state.needs_account() {
+        ui::muted(ui, Text::ConnectHint.get());
+        if ui::primary(ui, Text::ConnectSource.get()).clicked() {
+            app.account_open = true;
         }
+    } else {
+        ui::muted(ui, Text::Waiting.get());
+    }
+    ui.separator();
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(Text::History.get()).size(16.0).strong())
+            .on_hover_text(Text::HoverHelp.get());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui::muted(ui, Text::HoverHelp.get())
+            if ui::history_period(ui, &mut app.config.period_hours) {
+                app.mark_config();
+            }
         });
     });
+    ui.add_space(4.0);
+    chart(
+        ui,
+        "main_chart",
+        &app.snapshot.readings,
+        &app.config,
+        ui.available_width() / 1.8,
+        false,
+    );
+    ui.add_space(2.0);
+    ui.horizontal(|ui| {
+        for (title, level, color) in [
+            (Text::Low, app.config.low, LOW_GUIDE),
+            (Text::High, app.config.high, HIGH_GUIDE),
+        ] {
+            let (swatch, _) = ui.allocate_exact_size(egui::vec2(12.0, 6.0), egui::Sense::hover());
+            ui.painter().hline(
+                swatch.x_range(),
+                swatch.center().y,
+                egui::Stroke::new(2.0, color),
+            );
+            ui.small(format!(
+                "{} {}",
+                title.get(),
+                app.config.unit.format(level.into())
+            ));
+        }
+        ui.small(app.config.unit.label());
+        let mut source = format!(
+            "{} · {}",
+            app.snapshot.provider.label(),
+            app.snapshot.state.label()
+        );
+        if let Some(t) = app.snapshot.last_sync {
+            source.push_str(&format!(
+                " · {} {}",
+                Text::Synced.get(),
+                t.with_timezone(&Local).format("%H:%M")
+            ));
+        }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.add(
+                egui::Label::new(
+                    RichText::new(source)
+                        .size(11.0)
+                        .color(theme::palette(ui.ctx()).muted),
+                )
+                .wrap(),
+            );
+        });
+    });
+}
+
+// Strict comparisons keep samples on either guide inside the target range.
+fn glucose_zone(value: f64, low: f64, high: f64) -> usize {
+    if value < low {
+        0
+    } else if value > high {
+        2
+    } else {
+        1
+    }
 }
 
 pub fn chart(
@@ -256,7 +273,7 @@ pub fn chart(
     mini: bool,
 ) {
     let now = Utc::now().timestamp() as f64;
-    let hours = if mini { 3 } else { config.period_hours };
+    let hours = config.period_hours;
     let start = now - f64::from(hours) * 3600.0;
     let end = now + f64::from(hours) * 54.0;
     let unit = config.unit;
@@ -293,11 +310,19 @@ pub fn chart(
     } else {
         egui::Color32::from_rgb(35, 39, 44)
     };
+    let grid_color = theme::palette(ui.ctx()).line.gamma_multiply(0.55);
     let latest = all_points.last().copied();
     let response = Plot::new((id, hours, unit.label()))
         .height(height)
         .show_axes([!mini, !mini])
         .show_grid([false, false])
+        .y_grid_spacer(egui_plot::uniform_grid_spacer(move |_| {
+            if unit == Unit::Mmol {
+                [5.0, 10.0, 20.0]
+            } else {
+                [50.0, 100.0, 200.0]
+            }
+        }))
         .y_axis_position(egui_plot::HPlacement::Right)
         .show_background(false)
         .allow_drag(false)
@@ -335,6 +360,17 @@ pub fn chart(
             }
         })
         .show(ui, |plot| {
+            if !mini {
+                let interval = if unit == Unit::Mmol { 5.0 } else { 50.0 };
+                for tick in (y_low / interval).ceil() as i32..=(y_high / interval).floor() as i32 {
+                    plot.hline(
+                        HLine::new("", f64::from(tick) * interval)
+                            .color(grid_color)
+                            .width(0.6)
+                            .allow_hover(false),
+                    );
+                }
+            }
             plot.polygon(
                 Polygon::new(
                     Text::Guides.get(),
@@ -348,10 +384,7 @@ pub fn chart(
                 .stroke(egui::Stroke::NONE)
                 .allow_hover(false),
             );
-            for (bound, color) in [
-                (low, egui::Color32::from_rgb(232, 64, 75)),
-                (high, egui::Color32::from_rgb(233, 184, 32)),
-            ] {
+            for (bound, color) in [(low, LOW_GUIDE), (high, HIGH_GUIDE)] {
                 plot.hline(
                     HLine::new(Text::Guide.get(), bound)
                         .color(color)
@@ -360,16 +393,25 @@ pub fn chart(
                 );
             }
             // Each dot is an actual sample. Missing samples remain gaps, with no interpolation.
-            plot.points(
-                Points::new(Text::Reading.get(), PlotPoints::from(all_points))
-                    .color(point_color)
-                    .radius(if mini { 1.5 } else { 2.8_f32 })
-                    .allow_hover(false),
-            );
+            let colors = [LOW_GUIDE, point_color, HIGH_GUIDE];
+            let mut groups: [Vec<[f64; 2]>; 3] = Default::default();
+            for point in all_points {
+                groups[glucose_zone(point[1], low, high)].push(point);
+            }
+            for (points, color) in groups.into_iter().zip(colors) {
+                if !points.is_empty() {
+                    plot.points(
+                        Points::new(Text::Reading.get(), PlotPoints::from(points))
+                            .color(color)
+                            .radius(if mini { 1.5 } else { 2.8 })
+                            .allow_hover(false),
+                    );
+                }
+            }
             if let Some(last) = latest {
                 plot.points(
                     Points::new(Text::Latest.get(), PlotPoints::from(vec![last]))
-                        .color(point_color)
+                        .color(colors[glucose_zone(last[1], low, high)])
                         .radius(if mini { 2.7 } else { 5.0_f32 })
                         .allow_hover(false),
                 );
@@ -391,7 +433,7 @@ pub fn chart(
             );
             plot.points(
                 Points::new(Text::Selection.get(), PlotPoints::from(vec![[t, y]]))
-                    .color(theme::ink(plot.ctx(), theme::ACCENT))
+                    .color(colors[glucose_zone(y, low, high)])
                     .radius(if mini { 3.5 } else { 5.5_f32 })
                     .allow_hover(false),
             );
@@ -458,6 +500,18 @@ pub fn chart(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sample_colors_follow_the_guides_in_both_units() {
+        for unit in [Unit::Mmol, Unit::Mgdl] {
+            for (value, expected) in [(69.0, 0), (70.0, 1), (180.0, 1), (181.0, 2)] {
+                assert_eq!(
+                    glucose_zone(unit.convert(value), unit.convert(70.0), unit.convert(180.0)),
+                    expected
+                );
+            }
+        }
+    }
 
     #[test]
     fn relative_age_keeps_clock_and_stale_indicators_at_their_boundaries() {
