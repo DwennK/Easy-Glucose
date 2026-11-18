@@ -1,15 +1,15 @@
 <p align="center"><img src="assets/icon.png" alt="" width="86"></p>
 <h1 align="center">Easy Glucose</h1>
-<p align="center">Votre glycémie dans la barre de menus, dans une mini-fenêtre ou sur un graphique de 24 heures.</p>
-<p align="center"><a href=".github/workflows/build.yml"><img src="https://github.com/DwennK/Easy-Glucose/actions/workflows/build.yml/badge.svg" alt="Compilation et tests natifs"></a> · Rust · macOS et Windows · <a href="LICENSE">Licence MIT</a></p>
+<p align="center">View your glucose in the menu bar, in a floating widget, or on a 24-hour chart.</p>
+<p align="center"><a href=".github/workflows/build.yml"><img src="https://github.com/DwennK/Easy-Glucose/actions/workflows/build.yml/badge.svg" alt="Native builds and tests"></a> · Rust · macOS and Windows · <a href="LICENSE">MIT License</a></p>
 
-<p align="center"><a href="#essayer-la-démo">Essayer la démo</a> · <a href="#trois-vues">Découvrir les vues</a> · <a href="#connecter-une-source">Connecter une source</a> · <a href="#compiler">Compiler</a></p>
+<p align="center"><a href="#try-the-demo">Try the demo</a> · <a href="#three-views">Explore the views</a> · <a href="#connect-a-data-source">Connect a data source</a> · <a href="#build-from-source">Build from source</a></p>
 
-![Tableau de bord natif affichant des mesures simulées en mmol/L sur six heures](docs/images/dashboard.png)
+![Native dashboard showing six hours of simulated glucose readings in mmol/L](docs/images/dashboard.png)
 
-## Essayer la démo
+## Try the demo
 
-Avec Rust stable et les outils de compilation de votre plateforme, lancez la démo depuis le dépôt. Elle fonctionne sans compte et utilise des mesures fictives. Les captures de ce README ont été prises dans ce mode sur macOS.
+With stable Rust and your platform’s build tools installed, run the following commands. The demo uses simulated readings and requires no account. The screenshots in this README show the demo running on macOS.
 
 ```sh
 git clone https://github.com/DwennK/Easy-Glucose.git
@@ -17,38 +17,38 @@ cd Easy-Glucose
 cargo run --release --locked -- --demo
 ```
 
-Pour consulter votre source, lancez `cargo run --release --locked`, puis ouvrez **Réglages → Sources de données**. Chaque lecture affiche son ancienneté. Gardez l’application officielle de votre capteur pour les alarmes et les décisions de traitement. Easy Glucose sert à la consultation secondaire.
+To view your own readings, run `cargo run --release --locked` and open **Settings → Data sources**. Easy Glucose shows how old each reading is. Use it as a secondary display and rely on your sensor’s official app for alarms and treatment decisions.
 
-## Trois vues
+## Three views
 
-| Aperçu de la barre de menus macOS | Mini-fenêtre flottante |
+| macOS menu bar preview | Floating widget |
 | --- | --- |
-| <img src="docs/images/menu-preview.png" width="420" alt="Aperçu compact avec les deux actions et la fermeture en haut à droite"> | <img src="docs/images/widget.png" width="320" alt="Mini-fenêtre avec valeur, tendance, heure de mesure et graphique"> |
-| Cliquez sur la valeur pour ouvrir le graphique. Les deux icônes près de la croix ouvrent le tableau de bord et les réglages. Échap ou un clic à l’extérieur referme l’aperçu. | Faites glisser la mini-fenêtre par son en-tête. Elle mémorise sa position. Choisissez parmi trois tailles et activez le premier plan si vous voulez garder la valeur visible. |
+| <img src="docs/images/menu-preview.png" width="420" alt="Compact glucose preview with two action buttons and a close button in the upper right"> | <img src="docs/images/widget.png" width="320" alt="Floating widget showing the glucose value, trend, reading time, and chart"> |
+| Click the glucose value to open the chart. The two buttons next to the close button open the dashboard and settings. Press Esc or click outside the preview to close it. | Drag the widget by its header. It remembers its position. Choose from three sizes and turn on **Always on top** to keep your reading visible over other windows. |
 
-Dans **Ma glycémie**, choisissez une période de 1, 3, 6, 12 ou 24 heures. Chaque point correspond à une mesure reçue. Les interruptions restent visibles. Survolez le graphique pour lire la valeur et l’heure du point le plus proche. Une mesure datant d’au moins dix minutes est signalée comme ancienne, même si la connexion fonctionne.
+In **My glucose**, choose a time range of 1, 3, 6, 12, or 24 hours. Each point represents a reading, and gaps in the data remain visible. Hover over the chart to see the value and time of the nearest reading. Readings at least ten minutes old are marked as stale, even when the connection is working.
 
-Le clic droit sur la barre de menus macOS et le menu de la zone de notification Windows donnent accès à l’application, aux réglages, à la mini-fenêtre et à la commande pour quitter.
+Right-click the macOS menu bar item or open the Windows system tray menu to access the main window, settings, and floating widget, or to quit the app.
 
-## Connecter une source
+## Connect a data source
 
-| Source | Données nécessaires |
+| Source | What you need |
 | --- | --- |
-| **Dexcom Share** | Compte de la personne qui porte le capteur et région du compte. Activez Share et ajoutez au moins un abonné dans Dexcom. |
-| **FreeStyle Libre · LibreLinkUp** | Compte LibreLinkUp ayant accepté une invitation. Si plusieurs personnes partagent leurs données, choisissez celle dont vous souhaitez afficher les mesures. |
-| **Nightscout / Nocturne** | Adresse HTTPS du site et jeton de lecture pour un site privé. Un site public fonctionne sans jeton. L’authentification par secret API est également disponible. |
+| **Dexcom Share** | Use the sensor wearer’s Dexcom account and select its region. Enable Share in Dexcom and add at least one follower. |
+| **FreeStyle Libre · LibreLinkUp** | Use a LibreLinkUp account that has accepted a sharing invitation. If several people share data with you, choose whose readings to display. |
+| **Nightscout / Nocturne** | Enter the site’s HTTPS URL. For a private site, provide a read token. Public sites work without a token. API secret authentication is also available. |
 
-Les identifiants sont conservés dans le trousseau macOS ou le gestionnaire d’identifiants Windows. L’historique local est séparé par source et associé au compte, à la personne ou au site concerné. L’application ne chiffre pas elle-même le fichier de mesures. Les connecteurs Share et LibreLinkUp utilisent des protocoles non officiels. [Fonctionnement et limites des connecteurs](docs/sources.md)
+Credentials are stored in macOS Keychain or Windows Credential Manager. Easy Glucose keeps a separate local history for each source and associates it with the relevant account, person, or site. The app does not encrypt the local readings file. The Dexcom Share and LibreLinkUp connections use unofficial protocols. [How the connectors work and their limitations (in French)](docs/sources.md)
 
-## Langues et unités
+## Languages and units
 
-L’interface suit la langue du système. Le choix se modifie dès l’accueil ou dans **Réglages → Affichage → Langue**, sans redémarrer. Les valeurs peuvent s’afficher en **mmol/L** ou **mg/dL** indépendamment de la langue.
+The interface uses your system language by default. You can change it on the welcome screen or under **Settings → Display → Language** without restarting. You can display readings in **mmol/L** or **mg/dL** in any language.
 
-**20 langues** — Български, Čeština, Dansk, Deutsch, Ελληνικά, English, Español, Français, Italiano, Magyar, Nederlands, Norsk bokmål, Polski, Português, Română, Slovenčina, Suomi, Svenska, Türkçe, Українська.
+**20 languages** — Български, Čeština, Dansk, Deutsch, Ελληνικά, English, Español, Français, Italiano, Magyar, Nederlands, Norsk bokmål, Polski, Português, Română, Slovenčina, Suomi, Svenska, Türkçe, Українська.
 
-## Compiler
+## Build from source
 
-Utilisez les outils de ligne de commande Xcode sur macOS, ou Visual Studio Build Tools avec C++ et le SDK Windows sur Windows. Python 3 sert uniquement à préparer la distribution.
+On macOS, install the Xcode Command Line Tools. On Windows, install Visual Studio Build Tools with C++ and the Windows SDK. Python 3 is only required for packaging.
 
 ```sh
 cargo fmt --check
@@ -59,16 +59,16 @@ python3 scripts/licenses.py
 python3 scripts/package.py
 ```
 
-Le bundle macOS se trouve dans `dist/Easy Glucose.app`. Sur Windows, lancez les deux scripts avec `python` et ouvrez `dist/Easy-Glucose-Windows/Easy Glucose.exe`. La CI produit également des archives pour macOS Apple Silicon, macOS Intel et Windows x64. Les bundles macOS sont signés ad hoc. Le projet ne fournit actuellement ni notarisation Apple ni signature Windows. [Compilation et distribution](docs/distribution.md)
+On macOS, open `dist/Easy Glucose.app`. On Windows, run the two packaging scripts with `python`, then open `dist/Easy-Glucose-Windows/Easy Glucose.exe`. CI also produces archives for Apple Silicon Macs, Intel Macs, and Windows x64. The macOS bundles are ad hoc signed and have not been notarized by Apple. The Windows executable is unsigned. [Build and distribution guide (in French)](docs/distribution.md)
 
-## Dans le code
+## Code layout
 
-| Chemin | Rôle |
+| Path | Purpose |
 | --- | --- |
-| [src/core.rs](src/core.rs) | Conversions, tendances, ancienneté et sélection des mesures. |
-| [src/sources](src/sources) · [src/dexcom.rs](src/dexcom.rs) | Clients des fournisseurs, authentification et lecture des mesures. |
-| [src/services.rs](src/services.rs) · [src/storage.rs](src/storage.rs) | Synchronisation en arrière-plan, cache et persistance. |
-| [src/ui](src/ui) · [src/platform](src/platform) | Interface native egui, mini-fenêtre et intégration à la barre de menus. |
-| [locales](locales) | Un catalogue par langue. La compilation vérifie que chaque message est traduit. |
+| [src/core.rs](src/core.rs) | Unit conversions, glucose trends, reading age, and reading selection. |
+| [src/sources](src/sources) · [src/dexcom.rs](src/dexcom.rs) | Provider clients, authentication, and reading retrieval. |
+| [src/services.rs](src/services.rs) · [src/storage.rs](src/storage.rs) | Background synchronization, caching, and persistence. |
+| [src/ui](src/ui) · [src/platform](src/platform) | Native egui interface, floating widget, and menu bar integration. |
+| [locales](locales) | One catalog per language. The build checks that every message has a translation. |
 
-Les tests des fournisseurs utilisent des serveurs locaux et des données fictives. [Architecture](docs/architecture.md) · [Validation](docs/validation.md) · [Licences tierces](THIRD_PARTY.md)
+Provider tests use local servers and simulated data. [Architecture (in French)](docs/architecture.md) · [Validation (in French)](docs/validation.md) · [Third-party licenses](THIRD_PARTY.md)
