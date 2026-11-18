@@ -153,9 +153,15 @@ impl Client {
     pub fn selected_name(&self) -> Option<String> {
         self.patients
             .iter()
-            .find(|p| Some(&p.id) == self.credentials.patient_id.as_ref())
-            .filter(|p| !p.name.is_empty())
-            .map(|p| p.name.clone())
+            .enumerate()
+            .find(|(_, p)| Some(&p.id) == self.credentials.patient_id.as_ref())
+            .map(|(index, p)| {
+                if p.name.is_empty() {
+                    format!("#{}", index + 1)
+                } else {
+                    p.name.clone()
+                }
+            })
     }
     pub async fn fetch(&mut self) -> Result<Vec<Reading>, Error> {
         if self.token.is_none() {
@@ -303,6 +309,17 @@ mod tests {
     }
     fn graph(id: &str) -> Value {
         json!({"status":0,"data":{"connection":{"patientId":id,"glucoseMeasurement":measurement(123,3)},"graphData":[]}})
+    }
+    #[test]
+    fn unnamed_selection_keeps_its_number_in_every_language() {
+        let mut client = Client::new(credentials()).unwrap();
+        client.patients = parse_patients(&json!([
+            {"patientId":"person-a","firstName":"Alice"},
+            {"patientId":"person-b"}
+        ]))
+        .unwrap();
+        client.select_patient("person-b").unwrap();
+        assert_eq!(client.selected_name().as_deref(), Some("#2"));
     }
     #[test]
     fn libre_has_its_own_trends_and_utc_timestamp() {
