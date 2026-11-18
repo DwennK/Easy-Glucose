@@ -1,65 +1,74 @@
-# Easy Glucose
+<p align="center"><img src="assets/icon.png" alt="" width="86"></p>
+<h1 align="center">Easy Glucose</h1>
+<p align="center">Votre glycémie dans la barre de menus, dans une mini-fenêtre ou sur un graphique de 24 heures.</p>
+<p align="center"><a href=".github/workflows/build.yml"><img src="https://github.com/DwennK/Easy-Glucose/actions/workflows/build.yml/badge.svg" alt="Compilation et tests natifs"></a> · Rust · macOS et Windows · <a href="LICENSE">Licence MIT</a></p>
 
-Un compagnon glycémique natif pour macOS et Windows, écrit en Rust avec eframe/egui. Dashboard interactif, widget flottant, barre de menus macOS et zone de notification Windows.
+<p align="center"><a href="#essayer-la-démo">Essayer la démo</a> · <a href="#trois-vues">Découvrir les vues</a> · <a href="#connecter-une-source">Connecter une source</a> · <a href="#compiler">Compiler</a></p>
 
-**Consultation secondaire uniquement.** Easy Glucose n’est pas un dispositif médical. Il ne remplace pas les alarmes et applications officielles du capteur et ne doit pas guider une décision thérapeutique.
+![Tableau de bord natif affichant des mesures simulées en mmol/L sur six heures](docs/images/dashboard.png)
 
-## Démarrage
+## Essayer la démo
 
-Prérequis : Rust stable (1.94.1 utilisé pour la validation), outils de compilation Xcode sur macOS ; Visual Studio Build Tools avec C++ et Windows SDK sur Windows. Python 3 pour les scripts de packaging uniquement, jamais pour exécuter l’application.
+Avec Rust stable et les outils de compilation de votre plateforme, lancez la démo depuis le dépôt. Elle fonctionne sans compte et utilise des mesures fictives. Les captures de ce README ont été prises dans ce mode sur macOS.
 
 ```sh
-cargo run --release
-cargo run --release -- --demo
-cargo run --release -- --demo --diagnostics
+git clone https://github.com/DwennK/Easy-Glucose.git
+cd Easy-Glucose
+cargo run --release --locked -- --demo
 ```
 
-Dans **Réglages → Sources de données**, choisissez votre fournisseur :
+Pour consulter votre source, lancez `cargo run --release --locked`, puis ouvrez **Réglages → Sources de données**. Chaque lecture affiche son ancienneté. Gardez l’application officielle de votre capteur pour les alarmes et les décisions de traitement. Easy Glucose sert à la consultation secondaire.
 
-- **Dexcom Share** : région (International pour un compte suisse), identifiant et mot de passe du porteur. Share doit être activé avec au moins un abonné.
-- **FreeStyle Libre · LibreLinkUp** : e-mail et mot de passe du compte LibreLinkUp ayant accepté le partage. Si plusieurs personnes sont suivies, choisissez explicitement celle à afficher. Les conditions éventuelles doivent être acceptées dans l’application officielle.
-- **Nightscout / Nocturne** : adresse HTTPS du site et jeton de lecture. Le jeton est facultatif pour un site public. Le mode « API secret » reste disponible si votre serveur utilise cette authentification.
+## Trois vues
 
-Les identifiants de chaque fournisseur sont enregistrés séparément dans le trousseau macOS / Windows Credential Manager après une première récupération réussie. Changer de fournisseur retrouve sa connexion enregistrée. Les caches sont séparés et liés au compte, à la personne LibreLinkUp ou au site et à son jeton. Une tentative de connexion refusée ne remplace pas les identifiants précédemment enregistrés.
+| Aperçu de la barre de menus macOS | Mini-fenêtre flottante |
+| --- | --- |
+| <img src="docs/images/menu-preview.png" width="420" alt="Aperçu compact avec les deux actions et la fermeture en haut à droite"> | <img src="docs/images/widget.png" width="320" alt="Mini-fenêtre avec valeur, tendance, heure de mesure et graphique"> |
+| Cliquez sur la valeur pour ouvrir le graphique. Les deux icônes près de la croix ouvrent le tableau de bord et les réglages. Échap ou un clic à l’extérieur referme l’aperçu. | Faites glisser la mini-fenêtre par son en-tête. Elle mémorise sa position. Choisissez parmi trois tailles et activez le premier plan si vous voulez garder la valeur visible. |
 
-Le bouton de simulation permet d’explorer sans compte. La simulation est explicitement indiquée dans toutes les surfaces et ne remplace jamais le cache réel. Quittez-la pour rétablir le compte enregistré. Ne transmettez pas votre mot de passe dans un chat ou un fichier de configuration.
+Dans **Ma glycémie**, choisissez une période de 1, 3, 6, 12 ou 24 heures. Chaque point correspond à une mesure reçue. Les interruptions restent visibles. Survolez le graphique pour lire la valeur et l’heure du point le plus proche. Une mesure datant d’au moins dix minutes est signalée comme ancienne, même si la connexion fonctionne.
 
-Une mesure ancienne reste affichée avec son âge et un avertissement. Le statut réseau n’implique pas que les mesures sont fraîches. Chaque point du graphique représente une mesure réelle ; les interruptions restent vides. Choisissez une période de 1 à 24 h et déplacez le pointeur dans le graphique pour lire la mesure la plus proche dans le temps, quelle que soit sa hauteur. Le point et son heure réelle sont mis en évidence ; un écart important est signalé, sans inventer de mesure. Le cadrage reste stable et s’élargit si une source fournit des valeurs au-delà de la plage habituelle de Dexcom.
+Le clic droit sur la barre de menus macOS et le menu de la zone de notification Windows donnent accès à l’application, aux réglages, à la mini-fenêtre et à la commande pour quitter.
 
-Deux écrans : **Ma glycémie** et **Réglages**. Les choix actifs sont cochés, les boutons sont encadrés et les activations utilisent des interrupteurs Oui/Non. Trois onglets restent accessibles en haut des réglages : **Affichage** (apparence, unité, mini-fenêtre), **Sources de données** et **Options avancées** (repères, démarrage, fermeture et conservation locale). La transparence est volontairement remplacée par un fond opaque fiable. Le widget se déplace depuis son titre ; son bouton ↗ ouvre Ma glycémie. Échap masque le widget ; ⌘/Ctrl + virgule ouvre les paramètres depuis celui-ci. Sur macOS, un clic gauche sur la valeur de la barre de menus ouvre un aperçu avec la glycémie, le graphique et les périodes de 1 à 24 h. Un clic ailleurs, un second clic sur la valeur ou Échap le ferme. Les boutons de l’aperçu ouvrent l’app ou les réglages ; le clic droit conserve le menu classique (app, réglages, widget, quitter). Le widget flottant reste indépendant. Sur Windows, le menu de notification conserve son fonctionnement habituel.
+## Connecter une source
 
-## Vérification
+| Source | Données nécessaires |
+| --- | --- |
+| **Dexcom Share** | Compte de la personne qui porte le capteur et région du compte. Activez Share et ajoutez au moins un abonné dans Dexcom. |
+| **FreeStyle Libre · LibreLinkUp** | Compte LibreLinkUp ayant accepté une invitation. Si plusieurs personnes partagent leurs données, choisissez celle dont vous souhaitez afficher les mesures. |
+| **Nightscout / Nocturne** | Adresse HTTPS du site et jeton de lecture pour un site privé. Un site public fonctionne sans jeton. L’authentification par secret API est également disponible. |
+
+Les identifiants sont conservés dans le trousseau macOS ou le gestionnaire d’identifiants Windows. L’historique local est séparé par source et associé au compte, à la personne ou au site concerné. L’application ne chiffre pas elle-même le fichier de mesures. Les connecteurs Share et LibreLinkUp utilisent des protocoles non officiels. [Fonctionnement et limites des connecteurs](docs/sources.md)
+
+## Langues et unités
+
+L’interface suit la langue du système. Le choix se modifie dès l’accueil ou dans **Réglages → Affichage → Langue**, sans redémarrer. Les valeurs peuvent s’afficher en **mmol/L** ou **mg/dL** indépendamment de la langue.
+
+**20 langues** — Български, Čeština, Dansk, Deutsch, Ελληνικά, English, Español, Français, Italiano, Magyar, Nederlands, Norsk bokmål, Polski, Português, Română, Slovenčina, Suomi, Svenska, Türkçe, Українська.
+
+## Compiler
+
+Utilisez les outils de ligne de commande Xcode sur macOS, ou Visual Studio Build Tools avec C++ et le SDK Windows sur Windows. Python 3 sert uniquement à préparer la distribution.
 
 ```sh
 cargo fmt --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 cargo build --release --locked
-```
-
-Les tests couvrent conversions, tendances, timestamps, sentinelles, ancienneté, fusion de cache, parsing strict, erreurs, transitions d’état et renouvellement de session via un serveur HTTP local. Les tests couvrent aussi les trois sources, le choix de personne, les méthodes d’authentification Nightscout, la migration Dexcom et l’isolation du cache. Aucun test n’utilise d’identifiant réel ni de fournisseur distant.
-
-## Bundle local
-
-```sh
 python3 scripts/licenses.py
 python3 scripts/package.py
 ```
 
-Sur macOS, ouvrez `dist/Easy Glucose.app`, ou déplacez ce bundle dans Applications avant d’activer le lancement automatique. Sur Windows, les mêmes scripts avec `python` produisent `dist/Easy-Glucose-Windows/Easy Glucose.exe`, portable ; conservez son dossier et créez un raccourci si souhaité. Les icônes sont déjà fournies ; `scripts/icons.py` permet leur régénération.
+Le bundle macOS se trouve dans `dist/Easy Glucose.app`. Sur Windows, lancez les deux scripts avec `python` et ouvrez `dist/Easy-Glucose-Windows/Easy Glucose.exe`. La CI produit également des archives pour macOS Apple Silicon, macOS Intel et Windows x64. Les bundles macOS sont signés ad hoc. Le projet ne fournit actuellement ni notarisation Apple ni signature Windows. [Compilation et distribution](docs/distribution.md)
 
-Une seule instance est autorisée par dossier de données. Pour des tests isolés, définissez `EASY_GLUCOSE_DATA_DIR` vers un dossier temporaire. Ce réglage isole configuration, cache et espace de noms du trousseau ; `--demo` démarre sans connexion à un compte.
+## Dans le code
 
-## Distribution
+| Chemin | Rôle |
+| --- | --- |
+| [src/core.rs](src/core.rs) | Conversions, tendances, ancienneté et sélection des mesures. |
+| [src/sources](src/sources) · [src/dexcom.rs](src/dexcom.rs) | Clients des fournisseurs, authentification et lecture des mesures. |
+| [src/services.rs](src/services.rs) · [src/storage.rs](src/storage.rs) | Synchronisation en arrière-plan, cache et persistance. |
+| [src/ui](src/ui) · [src/platform](src/platform) | Interface native egui, mini-fenêtre et intégration à la barre de menus. |
+| [locales](locales) | Un catalogue par langue. La compilation vérifie que chaque message est traduit. |
 
-Le workflow `.github/workflows/build.yml` vérifie et compile Windows x64, macOS ARM64 et macOS Intel. Un tag `v*` crée une **release en brouillon** avec les archives, après réussite des trois jobs. Aucun dépôt distant ni release n’est créé par la simple présence de ce fichier.
-
-Les bundles macOS locaux sont signés ad hoc, **sans certificat Developer ID ni notarisation Apple** : Gatekeeper peut bloquer une archive téléchargée. L’exécutable Windows n’est pas signé et SmartScreen peut afficher un avertissement. Voir [distribution](docs/distribution.md) pour le circuit de signature.
-
-## Données et architecture
-
-Configuration et cache résident dans le dossier de données utilisateur (`~/Library/Application Support/ch.Peaks.Easy Glucose` sur macOS, dossier LocalAppData déterminé par `directories` sous Windows). L’application ne journalise ni mots de passe ni jetons. Les mesures locales ne sont pas chiffrées par l’application : leur protection dépend des permissions du compte et du chiffrement du disque. L’effacement local n’efface pas les données chez le fournisseur.
-
-Voir [connexion des sources](docs/sources.md), [architecture](docs/architecture.md), [validation](docs/validation.md) et [licences tierces](THIRD_PARTY.md).
-
-Les connexions Share et LibreLinkUp utilisent des protocoles non officiels étudiés dans des implémentations publiques. Nightscout et Nocturne utilisent l’API de lecture v1 compatible Nightscout. La compatibilité avec un compte réel, les changements de protocole et le fonctionnement sur chaque OS doivent être validés avant une diffusion publique.
+Les tests des fournisseurs utilisent des serveurs locaux et des données fictives. [Architecture](docs/architecture.md) · [Validation](docs/validation.md) · [Licences tierces](THIRD_PARTY.md)
