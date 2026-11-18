@@ -1,3 +1,4 @@
+use crate::i18n::Text;
 pub mod dashboard;
 pub mod popover;
 pub mod settings;
@@ -151,7 +152,11 @@ pub fn switch(ui: &mut egui::Ui, value: &mut bool, title: &str, hint: &str) -> e
     ui.painter().text(
         egui::pos2(track.left() - 12.0, rect.center().y),
         egui::Align2::RIGHT_CENTER,
-        if *value { "Oui" } else { "Non" },
+        if *value {
+            Text::Yes.get()
+        } else {
+            Text::No.get()
+        },
         egui::FontId::proportional(12.0),
         p.muted,
     );

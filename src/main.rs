@@ -18,7 +18,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 })),
         )
         .init();
-    let store = Store::open()?;
+    easy_glucose::i18n::activate(None);
+    let store = Store::open().map_err(|e| easy_glucose::i18n::notice(&e).to_owned())?;
     let lock = OpenOptions::new()
         .read(true)
         .write(true)
@@ -26,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .truncate(false)
         .open(store.directory.join("instance.lock"))?;
     if lock.try_lock_exclusive().is_err() {
-        eprintln!("Easy Glucose est déjà ouvert. Utilisez son icône dans la barre de menus.");
+        eprintln!("{}", easy_glucose::i18n::Text::AlreadyOpen.get());
         return Ok(());
     }
     let (config, notice) = match store.load_config() {

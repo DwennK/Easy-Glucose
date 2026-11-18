@@ -1,3 +1,4 @@
+use crate::i18n::Text;
 use crate::{
     platform::tray::{Action, Tray},
     services::{Command, Event, Service, Snapshot, State},
@@ -52,6 +53,7 @@ impl App {
         background: bool,
     ) -> Result<Self, String> {
         let ctx = cc.egui_ctx.clone();
+        crate::i18n::activate(config.language.as_deref());
         theme::install(&ctx);
         theme::apply(&ctx, config.theme);
         let service = Service::start(store, config.clone(), ctx.clone())?;
@@ -103,17 +105,21 @@ impl App {
         }
         Ok(app)
     }
+    pub fn apply_language(&mut self) {
+        crate::i18n::activate(self.config.language.as_deref());
+        if let Some(tray) = &self.tray {
+            tray.localize();
+        }
+        self.ctx.request_repaint();
+    }
     pub fn send(&mut self, command: Command) {
         if self.service.commands.send(command).is_err() {
-            self.notice = Some(
-                "Le service de synchronisation s’est arrêté. Redémarrez l’application.".into(),
-            );
+            self.notice = Some(Text::ServiceStopped.english().into());
         }
     }
     pub fn mark_config(&mut self) {
         self.dirty = Some(Instant::now());
-        self.ctx
-            .request_repaint_after_for(Duration::from_millis(600), egui::ViewportId::ROOT);
+        self.ctx.request_repaint_of(egui::ViewportId::ROOT);
     }
     pub fn refresh(&mut self) {
         if self.last_refresh.elapsed() >= Duration::from_secs(30) {
@@ -267,12 +273,16 @@ impl App {
                 }
             }
         }
-        if self
-            .dirty
-            .is_some_and(|t| t.elapsed() >= Duration::from_millis(500))
-        {
-            self.send(Command::Save(self.config.clone()));
-            self.dirty = None;
+        if let Some(changed) = self.dirty {
+            let remaining = Duration::from_millis(500).saturating_sub(changed.elapsed());
+            if remaining.is_zero() {
+                self.send(Command::Save(self.config.clone()));
+                self.dirty = None;
+            } else {
+                // Intermediate frames can replace an earlier repaint deadline.
+                self.ctx
+                    .request_repaint_after_for(remaining, egui::ViewportId::ROOT);
+            }
         }
     }
     fn navigation(&mut self, ctx: &egui::Context) {
@@ -289,8 +299,20 @@ impl App {
                     ui.label(RichText::new("Easy Glucose").size(20.0).strong());
                     if self.page != Page::Onboarding {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui::choice(ui, &mut self.page, Page::Settings, "Réglages", 150.0);
-                            ui::choice(ui, &mut self.page, Page::Dashboard, "Ma glycémie", 170.0);
+                            ui::choice(
+                                ui,
+                                &mut self.page,
+                                Page::Settings,
+                                Text::Settings.get(),
+                                150.0,
+                            );
+                            ui::choice(
+                                ui,
+                                &mut self.page,
+                                Page::Dashboard,
+                                Text::Dashboard.get(),
+                                170.0,
+                            );
                         });
                     }
                 });
@@ -372,8 +394,8 @@ impl eframe::App for App {
                         .corner_radius(8)
                         .show(ui, |ui| {
                             ui.horizontal_wrapped(|ui| {
-                                ui.label(message);
-                                if ui.small_button("Fermer").clicked() {
+                                ui.label(crate::i18n::notice(&message));
+                                if ui.small_button(Text::Close.get()).clicked() {
                                     self.notice = None;
                                 }
                             });
@@ -429,7 +451,7 @@ impl eframe::App for App {
         if self.config.widget_open {
             let id = egui::ViewportId::from_hash_of("glucose_widget");
             let mut builder = egui::ViewportBuilder::default()
-                .with_title("Easy Glucose · Widget")
+                .with_title(format!("Easy Glucose · {}", Text::Widget.get()))
                 .with_movable_by_background(true)
                 .with_decorations(false)
                 .with_resizable(false)
@@ -440,7 +462,9 @@ impl eframe::App for App {
             }
             // Restore once per opening. Feeding live coordinates back into the builder
             // can issue new native move commands while the user is dragging.
-            if !self.widget_was_open && let Some(pos) = self.config.widget_position {
+            if !self.widget_was_open
+                && let Some(pos) = self.config.widget_position
+            {
                 builder = builder.with_position(pos);
             }
             if self.reset_widget {
@@ -458,7 +482,7 @@ impl eframe::App for App {
         if self.popover.open {
             let id = egui::ViewportId::from_hash_of("menubar_graph");
             let builder = egui::ViewportBuilder::default()
-                .with_title("Easy Glucose · Aperçu")
+                .with_title(format!("Easy Glucose · {}", Text::Preview.get()))
                 .with_transparent(true)
                 .with_decorations(false)
                 .with_resizable(false)
@@ -475,21 +499,14 @@ impl eframe::App for App {
                 .readings
                 .last()
                 .map(|r| {
-                    format!(
-                        "{} {}{}{}",
-                        r.display(self.config.unit),
-                        r.trend.arrow(),
-                        if r.stale(chrono::Utc::now()) {
-                            " · ancien"
-                        } else {
-                            ""
-                        },
-                        if self.snapshot.state == State::Simulation {
-                            " · DÉMO"
-                        } else {
-                            ""
-                        }
-                    )
+                    let mut parts = vec![r.display(self.config.unit), r.trend.arrow().into()];
+                    if r.stale(chrono::Utc::now()) {
+                        parts.push(Text::Stale.get().into());
+                    }
+                    if self.snapshot.state == State::Simulation {
+                        parts.push(Text::Demo.get().into());
+                    }
+                    parts.join(" ")
                 })
                 .unwrap_or("—".into());
             let tooltip = format!(

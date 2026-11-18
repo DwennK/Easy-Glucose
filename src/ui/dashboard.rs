@@ -1,3 +1,4 @@
+use crate::i18n::Text;
 use crate::{
     app::App,
     core::{GAP_SECONDS, Reading, Unit, chart_segments, nearest_reading, recent_delta},
@@ -26,37 +27,37 @@ pub fn reading_color(app: &App) -> egui::Color32 {
 pub fn freshness(reading: &Reading) -> String {
     let age = reading.age_seconds(Utc::now());
     if age < -60 {
-        "Horloge à vérifier".into()
+        Text::Clock.get().into()
     } else if age < 60 {
-        "Il y a moins d’une minute".into()
+        Text::JustNow.get().into()
     } else if age < 3600 {
-        format!(
-            "Il y a {} min{}",
-            age / 60,
-            if age >= 600 {
-                " · mesure ancienne"
-            } else {
-                ""
-            }
-        )
+        let duration = format!("{} {}", age / 60, Text::Minute.get());
+        if age >= 600 {
+            format!("{duration} · {}", Text::Stale.get())
+        } else {
+            format!("{} · {duration}", Text::Age.get())
+        }
     } else {
         format!(
-            "Il y a {} h {} min · mesure ancienne",
+            "{} {} {} {} · {}",
             age / 3600,
-            (age % 3600) / 60
+            Text::Hour.get(),
+            (age % 3600) / 60,
+            Text::Minute.get(),
+            Text::Stale.get()
         )
     }
 }
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let p = theme::palette(ui.ctx());
     ui.horizontal(|ui| {
-        ui.heading("Ma glycémie");
+        ui.heading(Text::Dashboard.get());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui
                 .button(if app.config.widget_open {
-                    "Masquer la mini-fenêtre"
+                    Text::HideWidget.get()
                 } else {
-                    "Afficher la mini-fenêtre"
+                    Text::ShowWidget.get()
                 })
                 .clicked()
             {
@@ -73,8 +74,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     | State::SelectingPatient
             ) && app.last_refresh.elapsed().as_secs() >= 30;
             if ui
-                .add_enabled(enabled, egui::Button::new("Actualiser"))
-                .on_hover_text("Récupérer les dernières mesures")
+                .add_enabled(enabled, egui::Button::new(Text::Refresh.get()))
+                .on_hover_text(Text::Fetch.get())
                 .clicked()
             {
                 app.refresh();
@@ -84,13 +85,16 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     ui.add_space(10.0);
     if app.snapshot.state == State::Simulation {
         ui.horizontal(|ui| {
-            ui::pill(ui, "DÉMO · MESURES SIMULÉES", theme::ORANGE);
-            ui::muted(ui, "Aucune donnée médicale réelle");
+            ui::pill(ui, Text::DemoReadings.get(), theme::ORANGE);
+            ui::muted(ui, Text::DemoDisclaimer.get());
         });
         ui.add_space(6.0);
     }
     if let Some(error) = &app.snapshot.error {
-        ui.colored_label(theme::ink(ui.ctx(), theme::ORANGE), error);
+        ui.colored_label(
+            theme::ink(ui.ctx(), theme::ORANGE),
+            crate::i18n::notice(error),
+        );
         ui.add_space(6.0);
     }
     egui::Frame::new()
@@ -101,7 +105,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ui.set_min_width(ui.available_width());
             ui.columns(2, |cols| {
                 cols[0].vertical(|ui| {
-                    ui::muted(ui, "Dernière mesure");
+                    ui::muted(ui, Text::Latest.get());
                     ui.horizontal(|ui| {
                         let reading = app.snapshot.readings.last();
                         ui.label(
@@ -126,20 +130,20 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                             .readings
                             .last()
                             .map(freshness)
-                            .unwrap_or("Connectez votre source pour recevoir vos mesures.".into()),
+                            .unwrap_or(Text::ConnectHint.get().into()),
                     );
                 });
                 cols[1].with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
                     ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
                         if let Some(r) = app.snapshot.readings.last() {
                             let label = if r.stale(Utc::now()) {
-                                "Mesure ancienne"
+                                Text::Stale.get()
                             } else if r.mgdl < app.config.low {
-                                "Sous le repère bas"
+                                Text::Below.get()
                             } else if r.mgdl > app.config.high {
-                                "Au-dessus du repère haut"
+                                Text::Above.get()
                             } else {
-                                "Dans les repères"
+                                Text::Within.get()
                             };
                             ui::pill(ui, label, reading_color(app));
                             ui.label(r.trend.label());
@@ -147,13 +151,14 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                                 ui::muted(
                                     ui,
                                     format!(
-                                        "{} {} en {minutes} min",
+                                        "{} {} / {minutes} {}",
                                         app.config.unit.delta(delta),
-                                        app.config.unit.label()
+                                        app.config.unit.label(),
+                                        Text::Minute.get()
                                     ),
                                 );
                             }
-                        } else if ui::primary(ui, "Connecter une source…").clicked() {
+                        } else if ui::primary(ui, Text::ConnectSource.get()).clicked() {
                             app.account_open = true;
                         }
                     });
@@ -168,14 +173,14 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         .show(ui, |ui| {
             ui.set_min_width(ui.available_width());
             ui.horizontal(|ui| {
-                ui.label(RichText::new("Historique").size(18.0).strong());
+                ui.label(RichText::new(Text::History.get()).size(18.0).strong());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     for hours in [24, 12, 6, 3, 1] {
                         if ui::choice(
                             ui,
                             &mut app.config.period_hours,
                             hours,
-                            &format!("{hours} h"),
+                            &format!("{hours} {}", Text::Hour.get()),
                             75.0,
                         ) {
                             app.mark_config();
@@ -196,12 +201,17 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ui.horizontal(|ui| {
                 ui.colored_label(
                     theme::ink(ui.ctx(), theme::RED),
-                    format!("Bas : {}", app.config.unit.format(app.config.low.into())),
+                    format!(
+                        "{} · {}",
+                        Text::Low.get(),
+                        app.config.unit.format(app.config.low.into())
+                    ),
                 );
                 ui.colored_label(
                     theme::ink(ui.ctx(), theme::ORANGE),
                     format!(
-                        "Haut : {} {}",
+                        "{} · {} {}",
+                        Text::High.get(),
                         app.config.unit.format(app.config.high.into()),
                         app.config.unit.label()
                     ),
@@ -222,16 +232,14 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ui::muted(
                 ui,
                 format!(
-                    "· Synchronisé à {}",
+                    "· {} {}",
+                    Text::Synced.get(),
                     t.with_timezone(&Local).format("%H:%M")
                 ),
             );
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui::muted(
-                ui,
-                "Déplacez le pointeur sur le graphique pour lire les mesures.",
-            )
+            ui::muted(ui, Text::HoverHelp.get())
         });
     });
 }
@@ -320,7 +328,7 @@ pub fn chart(
         })
         .y_axis_formatter(move |mark, _| {
             if unit == Unit::Mmol {
-                format!("{:.1}", mark.value)
+                crate::i18n::decimal(format!("{:.1}", mark.value))
             } else {
                 format!("{:.0}", mark.value)
             }
@@ -328,7 +336,7 @@ pub fn chart(
         .show(ui, |plot| {
             plot.polygon(
                 Polygon::new(
-                    "Repères",
+                    Text::Guides.get(),
                     PlotPoints::from(vec![[start, low], [end, low], [end, high], [start, high]]),
                 )
                 .fill_color(if dark {
@@ -344,7 +352,7 @@ pub fn chart(
                 (high, egui::Color32::from_rgb(233, 184, 32)),
             ] {
                 plot.hline(
-                    HLine::new("Repère", bound)
+                    HLine::new(Text::Guide.get(), bound)
                         .color(color)
                         .width(if mini { 1.0 } else { 1.5 })
                         .allow_hover(false),
@@ -352,14 +360,14 @@ pub fn chart(
             }
             // Each dot is an actual sample. Missing samples remain gaps, with no interpolation.
             plot.points(
-                Points::new("Mesure", PlotPoints::from(all_points))
+                Points::new(Text::Reading.get(), PlotPoints::from(all_points))
                     .color(point_color)
                     .radius(if mini { 1.5 } else { 2.8 })
                     .allow_hover(false),
             );
             if let Some(last) = latest {
                 plot.points(
-                    Points::new("Dernière mesure", PlotPoints::from(vec![last]))
+                    Points::new(Text::Latest.get(), PlotPoints::from(vec![last]))
                         .color(point_color)
                         .radius(if mini { 2.7 } else { 5.0 })
                         .allow_hover(false),
@@ -375,13 +383,13 @@ pub fn chart(
             let t = selected.measured_at.timestamp() as f64;
             let y = unit.convert(selected.mgdl.into());
             plot.vline(
-                VLine::new("Mesure sélectionnée", t)
+                VLine::new(Text::SelectedReading.get(), t)
                     .color(theme::ACCENT)
                     .width(1.0)
                     .allow_hover(false),
             );
             plot.points(
-                Points::new("Sélection", PlotPoints::from(vec![[t, y]]))
+                Points::new(Text::Selection.get(), PlotPoints::from(vec![[t, y]]))
                     .color(theme::ink(plot.ctx(), theme::ACCENT))
                     .radius(if mini { 3.5 } else { 5.5 })
                     .allow_hover(false),
@@ -402,8 +410,10 @@ pub fn chart(
         );
         if distance > GAP_SECONDS as f64 / 2.0 {
             text.push_str(&format!(
-                "\nPoint le plus proche · écart {} min",
-                (distance / 60.0).ceil() as u64
+                "\n{} · {} {}",
+                Text::Nearest.get(),
+                (distance / 60.0).ceil() as u64,
+                Text::Minute.get()
             ));
         }
         let p = theme::palette(ui.ctx());
@@ -440,6 +450,6 @@ pub fn chart(
         painter.galley(rect.min + egui::vec2(10.0, 8.0), galley, p.text);
     }
     if readings.is_empty() && !mini {
-        ui::muted(ui, "Aucune mesure disponible pour cette source.");
+        ui::muted(ui, Text::NoData.get());
     }
 }

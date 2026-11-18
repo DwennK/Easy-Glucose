@@ -1,3 +1,4 @@
+use crate::i18n::Text;
 pub mod libre;
 pub mod nightscout;
 
@@ -167,30 +168,30 @@ pub(super) async fn json_response(
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
-    #[error("Identifiants refusés. Vérifiez le compte, le mot de passe ou le jeton.")]
+    #[error("{}", Text::AuthError.english())]
     Credentials,
-    #[error("Session expirée. Une reconnexion est nécessaire.")]
+    #[error("{}", Text::SessionExpired.english())]
     Session,
-    #[error("Trop de tentatives. Réessayez dans 30 minutes.")]
+    #[error("{}", Text::TooMany.english())]
     RateLimited,
-    #[error("Connexion interrompue. Nouvelle tentative automatique.")]
+    #[error("{}", Text::RetryNetwork.english())]
     Network,
-    #[error("Le fournisseur est indisponible. Nouvelle tentative automatique.")]
+    #[error("{}", Text::RetryProvider.english())]
     Server,
-    #[error("Réponse du fournisseur invalide. Aucune mesure n’a été ajoutée.")]
+    #[error("{}", Text::InvalidResponse.english())]
     Protocol,
     #[error(
-        "Ouvrez LibreLinkUp sur votre téléphone pour accepter les conditions ou terminer la connexion, puis réessayez."
+        "{}", Text::AcceptTerms.english()
     )]
     Terms,
     #[error(
-        "Aucune personne suivie. Acceptez une invitation de partage dans LibreLinkUp, puis réessayez."
+        "{}", Text::NoPerson.english()
     )]
     NoPatients,
-    #[error("Choisissez la personne dont vous souhaitez afficher les mesures.")]
+    #[error("{}", Text::ChoosePerson.english())]
     SelectPatient,
     #[error(
-        "Adresse invalide. Utilisez l’adresse HTTPS du site, sans identifiants, paramètre ni fragment."
+        "{}", Text::InvalidUrl.english()
     )]
     InvalidUrl,
 }

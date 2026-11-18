@@ -1,4 +1,5 @@
 use crate::core::{Limit, Reading, Trend, parse_timestamp};
+use crate::i18n::Text;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -15,9 +16,9 @@ pub enum Region {
 impl Region {
     pub fn label(self) -> &'static str {
         match self {
-            Self::International => "International · Suisse / Europe",
-            Self::Us => "États-Unis",
-            Self::Japan => "Japon",
+            Self::International => Text::International.get(),
+            Self::Us => Text::UnitedStates.get(),
+            Self::Japan => Text::Japan.get(),
         }
     }
     pub fn base_url(self) -> &'static str {

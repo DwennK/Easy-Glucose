@@ -1,3 +1,4 @@
+use crate::i18n::Text;
 use crate::{
     core::{Reading, demo_readings, merge_readings},
     sources::{Client, Credentials, Error, Patient, Provider},
@@ -24,16 +25,16 @@ pub enum State {
 impl State {
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Disconnected => "Non connecté",
-            Self::Connecting => "Connexion en cours",
-            Self::Syncing => "Synchronisation",
-            Self::Connected => "Connecté",
-            Self::Empty => "Aucune mesure partagée",
-            Self::Offline => "Connexion interrompue",
-            Self::InvalidCredentials => "Connexion refusée",
-            Self::ActionRequired => "Action requise",
-            Self::SelectingPatient => "Choisissez une personne",
-            Self::Simulation => "Simulation · données fictives",
+            Self::Disconnected => Text::Disconnected.get(),
+            Self::Connecting => Text::Connecting.get(),
+            Self::Syncing => Text::Syncing.get(),
+            Self::Connected => Text::Connected.get(),
+            Self::Empty => Text::NoShared.get(),
+            Self::Offline => Text::Offline.get(),
+            Self::InvalidCredentials => Text::Denied.get(),
+            Self::ActionRequired => Text::ActionRequired.get(),
+            Self::SelectingPatient => Text::SelectPerson.get(),
+            Self::Simulation => Text::Simulation.get(),
         }
     }
     pub fn after_result(result: &Result<Vec<Reading>, Error>) -> Self {
@@ -119,14 +120,12 @@ impl Service {
                 match runtime {
                     Ok(rt) => rt.block_on(run(store, config, rx, events, ctx, cancelled, vault)),
                     Err(_) => {
-                        let _ = events.send(Event::Notice(
-                            "Le service de synchronisation n’a pas démarré.".into(),
-                        ));
+                        let _ = events.send(Event::Notice(Text::ServiceStart.english().into()));
                         ctx.request_repaint_of(egui::ViewportId::ROOT);
                     }
                 }
             })
-            .map_err(|_| "Impossible de démarrer le service de synchronisation.")?;
+            .map_err(|_| Text::CannotStartSync.english())?;
         Ok(Self {
             commands: tx,
             events: receiver,
@@ -376,7 +375,7 @@ async fn run(
         let rate = rate_limits.entry(provider).or_insert_with(RateLimit::new);
         if Instant::now() < rate.cooldown {
             due = rate.cooldown;
-            snapshot.error=Some("Rafraîchissement temporairement limité. La synchronisation reprendra automatiquement.".into());
+            snapshot.error = Some(Text::RefreshLimit.english().into());
             snapshot.state = State::Offline;
             emit(&events, &ctx, Event::Data(snapshot.clone()));
             continue;

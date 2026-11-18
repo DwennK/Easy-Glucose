@@ -1,3 +1,4 @@
+use crate::i18n::Text;
 use crate::{
     core::{Limit, Reading, Unit, merge_readings},
     dexcom::Region,
@@ -35,9 +36,9 @@ impl WidgetSize {
     }
     pub fn label(self) -> &'static str {
         match self {
-            Self::Compact => "Compact",
-            Self::Normal => "Normal",
-            Self::Extended => "Étendu",
+            Self::Compact => Text::Small.get(),
+            Self::Normal => Text::Medium.get(),
+            Self::Extended => Text::Large.get(),
         }
     }
 }
@@ -45,6 +46,7 @@ impl WidgetSize {
 #[serde(default)]
 pub struct Config {
     pub theme: Theme,
+    pub language: Option<String>,
     pub unit: Unit,
     pub region: Region,
     pub provider: Provider,
@@ -66,6 +68,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             theme: Theme::System,
+            language: None,
             unit: Unit::Mmol,
             region: Region::International,
             provider: Provider::Dexcom,
@@ -111,16 +114,16 @@ impl Store {
             PathBuf::from(p)
         } else {
             directories::ProjectDirs::from("ch", "Peaks", "Easy Glucose")
-                .ok_or("Dossier utilisateur inaccessible.")?
+                .ok_or(Text::NoUserDir.english())?
                 .data_local_dir()
                 .to_owned()
         };
-        fs::create_dir_all(&directory).map_err(|_| "Impossible de créer le dossier de données.")?;
+        fs::create_dir_all(&directory).map_err(|_| Text::CreateDir.english())?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             fs::set_permissions(&directory, fs::Permissions::from_mode(0o700))
-                .map_err(|_| "Permissions du dossier inaccessibles.")?;
+                .map_err(|_| Text::DirPerm.english())?;
         }
         Ok(Self { directory })
     }
@@ -128,14 +131,14 @@ impl Store {
         let path = self.directory.join(name);
         match fs::metadata(&path) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(_) => return Err("Lecture du stockage impossible.".into()),
-            Ok(m) if m.len() > 16_777_216 => return Err("Fichier local trop volumineux.".into()),
+            Err(_) => return Err(Text::ReadError.english().into()),
+            Ok(m) if m.len() > 16_777_216 => return Err(Text::TooLarge.english().into()),
             _ => {}
         }
-        let bytes = fs::read(path).map_err(|_| "Lecture du stockage impossible.")?;
+        let bytes = fs::read(path).map_err(|_| Text::ReadError.english())?;
         serde_json::from_slice(&bytes)
             .map(Some)
-            .map_err(|_| "Fichier local invalide. Il a été conservé pour diagnostic.".into())
+            .map_err(|_| Text::Corrupt.english().into())
     }
     pub fn load_config(&self) -> Result<Config, String> {
         let mut c: Config = self.read("settings.json")?.unwrap_or_default();
@@ -150,8 +153,7 @@ impl Store {
                 "settings-corrupt-{}.json",
                 Utc::now().timestamp_millis()
             ));
-            fs::rename(source, backup)
-                .map_err(|_| "Impossible de préserver la configuration endommagée.")?;
+            fs::rename(source, backup).map_err(|_| Text::Preserve.english())?;
         }
         atomic_json(&self.directory.join("settings.json"), c)
     }
@@ -195,7 +197,7 @@ impl Store {
         match fs::remove_file(file) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(_) => return Err("Impossible d’effacer l’historique de cette source.".into()),
+            Err(_) => return Err(Text::ClearSource.english().into()),
         }
         if provider == Provider::Dexcom {
             self.clear_cache()?;
@@ -225,7 +227,7 @@ impl Store {
         match fs::remove_file(self.directory.join("readings.json")) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(_) => Err("Impossible d’effacer l’historique local.".into()),
+            Err(_) => Err(Text::ClearLocal.english().into()),
         }
     }
 }
@@ -236,16 +238,16 @@ struct SourceCache {
 }
 
 fn atomic_json<T: Serialize + ?Sized>(path: &Path, value: &T) -> Result<(), String> {
-    let parent = path.parent().ok_or("Chemin de stockage invalide.")?;
+    let parent = path.parent().ok_or(Text::StoragePath.english())?;
     let mut temp =
-        tempfile::NamedTempFile::new_in(parent).map_err(|_| "Écriture locale impossible.")?;
-    serde_json::to_writer(&mut temp, value).map_err(|_| "Enregistrement impossible.")?;
-    temp.flush().map_err(|_| "Écriture locale incomplète.")?;
+        tempfile::NamedTempFile::new_in(parent).map_err(|_| Text::WriteError.english())?;
+    serde_json::to_writer(&mut temp, value).map_err(|_| Text::SaveError.english())?;
+    temp.flush().map_err(|_| Text::IncompleteWrite.english())?;
     temp.as_file()
         .sync_all()
-        .map_err(|_| "Synchronisation du fichier impossible.")?;
+        .map_err(|_| Text::SyncFile.english())?;
     temp.persist(path)
-        .map_err(|_| "Remplacement du fichier impossible.")?;
+        .map_err(|_| Text::ReplaceFile.english())?;
     Ok(())
 }
 pub trait CredentialStore: Send {
@@ -277,13 +279,15 @@ fn entry(provider: Provider) -> Result<keyring::Entry, String> {
     } else {
         "ch.peaks.easy-glucose".into()
     };
-    keyring::Entry::new(&service, provider.key())
-        .map_err(|_| "Trousseau système indisponible.".into())
+    keyring::Entry::new(&service, provider.key()).map_err(|_| Text::Keyring.english().into())
 }
 pub fn save_credentials(c: &Credentials) -> Result<(), String> {
-    let json =
-        zeroize::Zeroizing::new(serde_json::to_string(c).map_err(|_| "Identifiants invalides.")?);
-    entry(c.provider())?.set_password(&json).map_err(|_| "Le trousseau a refusé l’enregistrement. Connexion conservée pour cette session uniquement.".into())
+    let json = zeroize::Zeroizing::new(
+        serde_json::to_string(c).map_err(|_| Text::InvalidCredentials.english())?,
+    );
+    entry(c.provider())?
+        .set_password(&json)
+        .map_err(|_| Text::KeyringSave.english().into())
 }
 pub fn load_credentials(provider: Provider) -> Result<Option<(Credentials, bool)>, String> {
     match entry(provider)?.get_password() {
@@ -292,7 +296,7 @@ pub fn load_credentials(provider: Provider) -> Result<Option<(Credentials, bool)
             decode_credentials(&value, provider).map(Some)
         }
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(_) => Err("Accès au trousseau refusé. Connectez votre compte manuellement.".into()),
+        Err(_) => Err(Text::KeyringRead.english().into()),
     }
 }
 fn decode_credentials(value: &str, provider: Provider) -> Result<(Credentials, bool), String> {
@@ -305,12 +309,12 @@ fn decode_credentials(value: &str, provider: Provider) -> Result<(Credentials, b
     {
         return Ok((Credentials::Dexcom(c), true));
     }
-    Err("Entrée du trousseau invalide. Reconnectez cette source.".into())
+    Err(Text::KeyringInvalid.english().into())
 }
 pub fn delete_credentials(provider: Provider) -> Result<(), String> {
     match entry(provider)?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(_) => Err("La suppression des identifiants de cette source a échoué.".into()),
+        Err(_) => Err(Text::KeyringDelete.english().into()),
     }
 }
 

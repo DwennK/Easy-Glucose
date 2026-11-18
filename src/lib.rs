@@ -1,6 +1,7 @@
 pub mod app;
 pub mod core;
 pub mod dexcom;
+pub mod i18n;
 pub mod platform;
 pub mod services;
 pub mod sources;

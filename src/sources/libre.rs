@@ -154,6 +154,7 @@ impl Client {
         self.patients
             .iter()
             .find(|p| Some(&p.id) == self.credentials.patient_id.as_ref())
+            .filter(|p| !p.name.is_empty())
             .map(|p| p.name.clone())
     }
     pub async fn fetch(&mut self) -> Result<Vec<Reading>, Error> {
@@ -198,7 +199,7 @@ fn parse_patients(value: &Value) -> Result<Vec<Patient>, Error> {
         return Err(Error::Protocol);
     }
     let mut patients = Vec::new();
-    for (i, connection) in connections.iter().enumerate() {
+    for connection in connections {
         let id = connection["patientId"]
             .as_str()
             .filter(|s| {
@@ -221,11 +222,7 @@ fn parse_patients(value: &Value) -> Result<Vec<Patient>, Error> {
             .collect();
         patients.push(Patient {
             id: id.into(),
-            name: if name.is_empty() {
-                format!("Personne {}", i + 1)
-            } else {
-                name
-            },
+            name,
         });
     }
     Ok(patients)

@@ -1,3 +1,4 @@
+use crate::i18n::Text;
 use eframe::egui;
 use std::sync::mpsc::{self, Receiver};
 use tray_icon::{
@@ -16,16 +17,17 @@ pub enum Action {
 }
 pub struct Tray {
     icon: TrayIcon,
+    items: [MenuItem; 4],
     pub events: Receiver<Action>,
     last_title: String,
 }
 impl Tray {
     pub fn new(ctx: egui::Context) -> Result<Self, String> {
         let menu = Menu::new();
-        let dashboard = MenuItem::new("Ouvrir Easy Glucose", true, None);
-        let settings = MenuItem::new("Réglages…", true, None);
-        let widget = MenuItem::new("Afficher / masquer la mini-fenêtre", true, None);
-        let quit = MenuItem::new("Quitter Easy Glucose", true, None);
+        let dashboard = MenuItem::new(Text::OpenApp.get(), true, None);
+        let settings = MenuItem::new(Text::Settings.get(), true, None);
+        let widget = MenuItem::new(Text::ToggleWidget.get(), true, None);
+        let quit = MenuItem::new(Text::Quit.get(), true, None);
         menu.append_items(&[
             &dashboard,
             &settings,
@@ -33,10 +35,10 @@ impl Tray {
             &PredefinedMenuItem::separator(),
             &quit,
         ])
-        .map_err(|_| "Menu système indisponible.")?;
+        .map_err(|_| Text::TrayError.english())?;
         // 44 pixels map exactly to the 22-point macOS menu item on Retina displays.
         let icon = tray_icon::Icon::from_rgba(icon_rgba(44, cfg!(target_os = "macos")), 44, 44)
-            .map_err(|_| "Icône invalide.")?;
+            .map_err(|_| Text::IconError.english())?;
         let builder = TrayIconBuilder::new();
         #[cfg(target_os = "macos")]
         let builder = builder
@@ -45,12 +47,10 @@ impl Tray {
         #[cfg(not(target_os = "macos"))]
         let builder = builder.with_icon(icon);
         let icon = builder
-            .with_tooltip("Easy Glucose · aucune mesure")
+            .with_tooltip(format!("Easy Glucose · {}", Text::NoReading.get()))
             .with_menu(Box::new(menu))
             .build()
-            .map_err(
-                |_| "Zone de notification indisponible. La fermeture quittera l’application.",
-            )?;
+            .map_err(|_| Text::TrayUnavailable.english())?;
         let (tx, rx) = mpsc::channel();
         #[cfg(target_os = "macos")]
         {
@@ -94,6 +94,7 @@ impl Tray {
         }));
         Ok(Self {
             icon,
+            items: [dashboard, settings, widget, quit],
             events: rx,
             last_title: String::new(),
         })
@@ -140,6 +141,16 @@ impl Tray {
             );
         }
         Some(position)
+    }
+    pub fn localize(&self) {
+        for (item, text) in self.items.iter().zip([
+            Text::OpenApp,
+            Text::Settings,
+            Text::ToggleWidget,
+            Text::Quit,
+        ]) {
+            item.set_text(text.get());
+        }
     }
     pub fn update(&mut self, title: &str, tooltip: &str) {
         let combined = format!("{title}|{tooltip}");

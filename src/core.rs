@@ -1,3 +1,4 @@
+use crate::i18n::Text;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -25,13 +26,13 @@ impl Unit {
     }
     pub fn format(self, value: f64) -> String {
         match self {
-            Self::Mmol => format!("{:.1}", self.convert(value)),
+            Self::Mmol => crate::i18n::decimal(format!("{:.1}", self.convert(value))),
             Self::Mgdl => format!("{value:.0}"),
         }
     }
     pub fn delta(self, value: f64) -> String {
         match self {
-            Self::Mmol => format!("{:+.1}", self.convert(value)),
+            Self::Mmol => crate::i18n::decimal(format!("{:+.1}", self.convert(value))),
             Self::Mgdl => format!("{value:+.0}"),
         }
     }
@@ -90,14 +91,14 @@ impl Trend {
     }
     pub fn label(self) -> &'static str {
         match self {
-            Self::DoubleUp => "Hausse rapide",
-            Self::Up => "En hausse",
-            Self::SlightUp => "Légère hausse",
-            Self::Flat => "Stable",
-            Self::SlightDown => "Légère baisse",
-            Self::Down => "En baisse",
-            Self::DoubleDown => "Baisse rapide",
-            _ => "Tendance indisponible",
+            Self::DoubleUp => Text::FastRise.get(),
+            Self::Up => Text::Rising.get(),
+            Self::SlightUp => Text::SlightRise.get(),
+            Self::Flat => Text::Stable.get(),
+            Self::SlightDown => Text::SlightFall.get(),
+            Self::Down => Text::Falling.get(),
+            Self::DoubleDown => Text::FastFall.get(),
+            _ => Text::NoTrend.get(),
         }
     }
 }

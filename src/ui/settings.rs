@@ -1,3 +1,4 @@
+use crate::i18n::Text;
 use crate::{
     app::{App, Page},
     core::Unit,
@@ -12,7 +13,7 @@ use eframe::egui::{self, RichText};
 pub fn account(app: &mut App, ui: &mut egui::Ui) {
     let previous = app.config.provider;
     ui.horizontal(|ui| {
-        ui.label("Fournisseur");
+        ui.label(Text::Provider.get());
         egui::ComboBox::from_id_salt("source_provider")
             .width(340.0)
             .selected_text(app.config.provider.label())
@@ -34,32 +35,28 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
     ui::muted(
         ui,
         match app.config.provider {
-            Provider::Dexcom => {
-                "Compte du porteur du capteur. Activez Share et ajoutez un abonné dans Dexcom."
-            }
-            Provider::LibreLinkUp => {
-                "Utilisez votre compte LibreLinkUp après avoir accepté une invitation de partage."
-            }
-            Provider::Nightscout => {
-                "Connectez le site Nightscout ou Nocturne qui reçoit déjà vos mesures."
-            }
+            Provider::Dexcom => Text::DexcomHelp.get(),
+            Provider::LibreLinkUp => Text::LibreHelp.get(),
+            Provider::Nightscout => Text::NightscoutHelp.get(),
         },
     );
     if app.snapshot.state == State::SelectingPatient {
         ui.add_space(10.0);
-        ui.label(RichText::new("Quelle personne souhaitez-vous suivre ?").strong());
-        for patient in app.snapshot.patients.clone() {
+        ui.label(RichText::new(Text::Who.get()).strong());
+        for (index, patient) in app.snapshot.patients.clone().into_iter().enumerate() {
+            let label = if patient.name.is_empty() {
+                format!("{} {}", Text::Person.get(), index + 1)
+            } else {
+                patient.name
+            };
             if ui
-                .add_sized(
-                    [ui.available_width(), 44.0],
-                    egui::Button::new(&patient.name),
-                )
+                .add_sized([ui.available_width(), 44.0], egui::Button::new(label))
                 .clicked()
             {
                 app.select_patient(patient.id);
             }
         }
-        if ui.button("Annuler la connexion").clicked() {
+        if ui.button(Text::CancelConnection.get()).clicked() {
             app.restore();
         }
         return;
@@ -67,7 +64,7 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
     ui.add_space(4.0);
     if app.config.provider == Provider::Dexcom {
         ui.horizontal(|ui| {
-            ui.label("Région");
+            ui.label(Text::Region.get());
             egui::ComboBox::from_id_salt("region")
                 .selected_text(app.config.region.label())
                 .width(340.0)
@@ -85,31 +82,39 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
     }
     let nightscout = app.config.provider == Provider::Nightscout;
     if nightscout {
-        ui.label("Adresse du site");
+        ui.label(Text::SiteAddress.get());
         ui.add(
             egui::TextEdit::singleline(&mut app.source_url)
-                .hint_text("https://mon-site.example")
+                .hint_text("https://example.org")
                 .desired_width(f32::INFINITY)
                 .margin(egui::vec2(12.0, 10.0)),
         );
         ui.horizontal(|ui| {
-            ui.label("Accès");
+            ui.label(Text::Access.get());
             egui::ComboBox::from_id_salt("nightscout_auth")
                 .width(300.0)
                 .selected_text(if app.nightscout_auth == Auth::Token {
-                    "Jeton de lecture"
+                    Text::ReadToken.get()
                 } else {
-                    "API secret"
+                    Text::ApiSecret.get()
                 })
                 .show_ui(ui, |ui| {
                     if ui
-                        .selectable_value(&mut app.nightscout_auth, Auth::Token, "Jeton de lecture")
+                        .selectable_value(
+                            &mut app.nightscout_auth,
+                            Auth::Token,
+                            Text::ReadToken.get(),
+                        )
                         .clicked()
                     {
                         ui.close();
                     }
                     if ui
-                        .selectable_value(&mut app.nightscout_auth, Auth::ApiSecret, "API secret")
+                        .selectable_value(
+                            &mut app.nightscout_auth,
+                            Auth::ApiSecret,
+                            Text::ApiSecret.get(),
+                        )
                         .clicked()
                     {
                         ui.close();
@@ -117,43 +122,40 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
                 });
         });
         ui.label(if app.nightscout_auth == Auth::Token {
-            "Jeton — facultatif si le site est public"
+            Text::OptionalToken.get()
         } else {
-            "API secret du site"
+            Text::SiteSecret.get()
         });
     } else {
         ui.label(if app.config.provider == Provider::Dexcom {
-            "Identifiant Dexcom"
+            Text::DexcomLogin.get()
         } else {
-            "Adresse e-mail LibreLinkUp"
+            Text::LibreEmail.get()
         });
         ui.add(
             egui::TextEdit::singleline(&mut app.username)
                 .hint_text(if app.config.provider == Provider::Dexcom {
-                    "E-mail, téléphone ou identifiant"
+                    Text::LoginHint.get()
                 } else {
-                    "vous@exemple.ch"
+                    "name@example.org"
                 })
                 .desired_width(f32::INFINITY)
                 .margin(egui::vec2(12.0, 10.0)),
         );
-        ui.label("Mot de passe");
+        ui.label(Text::Password.get());
     }
     let password = ui.add(
         egui::TextEdit::singleline(&mut app.password)
             .password(true)
             .hint_text(if nightscout {
-                "Votre jeton ou secret d’accès"
+                Text::TokenHint.get()
             } else {
-                "Votre mot de passe"
+                Text::PasswordHint.get()
             })
             .desired_width(f32::INFINITY)
             .margin(egui::vec2(12.0, 10.0)),
     );
-    ui::muted(
-        ui,
-        "Identifiants enregistrés dans le trousseau, séparément pour chaque fournisseur.",
-    );
+    ui::muted(ui, Text::KeyringHelp.get());
     let ready = if nightscout {
         !app.source_url.trim().is_empty()
             && (app.nightscout_auth == Auth::Token || !app.password.is_empty())
@@ -163,7 +165,7 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
     let busy = matches!(app.snapshot.state, State::Connecting | State::Syncing);
     ui.horizontal(|ui| {
         let click = ui
-            .add_enabled_ui(ready && !busy, |ui| ui::primary(ui, "Se connecter"))
+            .add_enabled_ui(ready && !busy, |ui| ui::primary(ui, Text::Connect.get()))
             .inner
             .clicked();
         if click
@@ -175,7 +177,7 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
             app.connect();
         }
         if !matches!(app.snapshot.state, State::Disconnected | State::Simulation)
-            && ui.button("Se déconnecter").clicked()
+            && ui.button(Text::Disconnect.get()).clicked()
         {
             app.disconnect();
         }
@@ -185,7 +187,7 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
         ) && ui
             .add_enabled(
                 app.last_refresh.elapsed().as_secs() >= 30,
-                egui::Button::new("Réessayer"),
+                egui::Button::new(Text::Retry.get()),
             )
             .clicked()
         {
@@ -202,16 +204,20 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
         ),
     );
     if let Some(name) = &app.snapshot.patient_name {
-        ui::muted(ui, format!("Personne suivie : {name}"));
+        ui::muted(ui, format!("{} · {name}", Text::Following.get()));
     }
     if let Some(error) = &app.snapshot.error {
-        ui.colored_label(theme::ink(ui.ctx(), theme::ORANGE), error);
+        ui.colored_label(
+            theme::ink(ui.ctx(), theme::ORANGE),
+            crate::i18n::notice(error),
+        );
     }
     if let Some(next) = app.snapshot.next_sync {
         ui::muted(
             ui,
             format!(
-                "Prochaine synchronisation à {}",
+                "{} · {}",
+                Text::NextSync.get(),
                 next.with_timezone(&chrono::Local).format("%H:%M")
             ),
         );
@@ -220,45 +226,41 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
 
 pub fn onboarding(app: &mut App, ui: &mut egui::Ui) {
     ui.add_space(8.0);
-    ui.heading("Votre glycémie, en un coup d’œil.");
-    ui::muted(
-        ui,
-        "Choisissez votre fournisseur pour retrouver vos mesures ici et dans la mini-fenêtre.",
-    );
+    language_picker(app, ui);
+    ui.add_space(12.0);
+    ui.heading(Text::Welcome.get());
+    ui::muted(ui, Text::WelcomeHint.get());
     ui.add_space(16.0);
-    ui::group(ui, "Sources de données", |ui| account(app, ui));
+    ui::group(ui, Text::Sources.get(), |ui| account(app, ui));
     ui.add_space(10.0);
     ui.horizontal(|ui| {
-        if ui.button("Essayer la démo").clicked() {
+        if ui.button(Text::TryDemo.get()).clicked() {
             app.demo();
         }
-        if ui.button("Plus tard").clicked() {
+        if ui.button(Text::Later.get()).clicked() {
             app.config.onboarding_done = true;
             app.page = Page::Dashboard;
             app.mark_config();
         }
     });
     ui.add_space(12.0);
-    ui::muted(
-        ui,
-        "Consultation secondaire, sans alarme. Gardez l’application de votre capteur pour les décisions de traitement.",
-    );
+    ui::muted(ui, Text::SecondaryUse.get());
 }
 
 pub fn header(app: &mut App, ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
-        ui.heading("Réglages");
+        ui.heading(Text::Settings.get());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui::muted(ui, "Enregistrement automatique")
+            ui::muted(ui, Text::AutoSave.get())
         });
     });
     ui.add_space(12.0);
     let width = (ui.available_width() - 20.0) / 3.0;
     ui.horizontal(|ui| {
         for (tab, title) in [
-            (0, "Affichage"),
-            (1, "Sources de données"),
-            (2, "Options avancées"),
+            (0, Text::Display.get()),
+            (1, Text::Sources.get()),
+            (2, Text::Advanced.get()),
         ] {
             ui::choice(ui, &mut app.settings_tab, tab, title, width);
         }
@@ -270,7 +272,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     match app.settings_tab {
         0 => display(app, ui),
         1 => {
-            ui::group(ui, "Sources de données", |ui| account(app, ui));
+            ui::group(ui, Text::Sources.get(), |ui| account(app, ui));
         }
         _ => advanced(app, ui),
     }
@@ -282,47 +284,43 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
 }
 
 fn display(app: &mut App, ui: &mut egui::Ui) {
-    ui::group(ui, "Apparence et unité", |ui| {
-        row(ui, "Apparence", |ui| {
+    language_picker(app, ui);
+    ui.add_space(6.0);
+    ui::group(ui, Text::AppearanceUnits.get(), |ui| {
+        row(ui, Text::Appearance.get(), |ui| {
             for (value, label) in [
-                (Theme::Light, "Clair"),
-                (Theme::Dark, "Sombre"),
-                (Theme::System, "Automatique"),
+                (Theme::Light, Text::Light.get()),
+                (Theme::Dark, Text::Dark.get()),
+                (Theme::System, Text::Automatic.get()),
             ] {
                 ui::choice(ui, &mut app.config.theme, value, label, 138.0);
             }
         });
-        row(ui, "Unité", |ui| {
+        row(ui, Text::Units.get(), |ui| {
             for value in [Unit::Mmol, Unit::Mgdl] {
                 ui::choice(ui, &mut app.config.unit, value, value.label(), 138.0);
             }
         });
     });
     ui.add_space(6.0);
-    ui::group(ui, "Mini-fenêtre", |ui| {
+    ui::group(ui, Text::Widget.get(), |ui| {
         ui::switch(
             ui,
             &mut app.config.widget_open,
-            "Afficher la mini-fenêtre",
-            "Votre glycémie, à côté de vos autres applications.",
+            Text::ShowWidget.get(),
+            Text::WidgetHint.get(),
         );
-        row(ui, "Taille", |ui| {
+        row(ui, Text::Size.get(), |ui| {
             for (value, label) in [
-                (WidgetSize::Compact, "Petite"),
-                (WidgetSize::Normal, "Moyenne"),
-                (WidgetSize::Extended, "Grande"),
+                (WidgetSize::Compact, Text::Small.get()),
+                (WidgetSize::Normal, Text::Medium.get()),
+                (WidgetSize::Extended, Text::Large.get()),
             ] {
                 ui::choice(ui, &mut app.config.widget_size, value, label, 138.0);
             }
         });
-        ui::switch(
-            ui,
-            &mut app.config.always_on_top,
-            "Toujours au premier plan",
-            "",
-        );
-        if app.config.widget_open && ui.button("Replacer la mini-fenêtre à l’écran").clicked()
-        {
+        ui::switch(ui, &mut app.config.always_on_top, Text::OnTop.get(), "");
+        if app.config.widget_open && ui.button(Text::ResetWidget.get()).clicked() {
             app.config.widget_position = Some([80.0, 80.0]);
             app.reset_widget = true;
         }
@@ -339,9 +337,9 @@ pub fn account_dialog(app: &mut App, ctx: &egui::Context) {
         .show(ctx, |ui| {
             ui.set_width(470.0);
             ui.horizontal(|ui| {
-                ui.label(RichText::new("Sources de données").size(24.0).strong());
+                ui.label(RichText::new(Text::Sources.get()).size(24.0).strong());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Fermer").clicked() {
+                    if ui.button(Text::Close.get()).clicked() {
                         app.account_open = false;
                     }
                 });
@@ -358,42 +356,34 @@ pub fn account_dialog(app: &mut App, ctx: &egui::Context) {
 }
 
 fn advanced(app: &mut App, ui: &mut egui::Ui) {
-    ui::group(ui, "Ouverture et fermeture", |ui| {
-        ui::switch(
-            ui,
-            &mut app.config.autostart,
-            "Lancer à l’ouverture de session",
-            "",
-        );
+    ui::group(ui, Text::Startup.get(), |ui| {
+        ui::switch(ui, &mut app.config.autostart, Text::LoginStart.get(), "");
         ui::switch(
             ui,
             &mut app.config.start_minimized,
-            "Démarrer sans ouvrir la fenêtre",
-            "Accessible depuis l’icône de la barre de menus.",
+            Text::StartHidden.get(),
+            Text::TrayHint.get(),
         );
         ui::switch(
             ui,
             &mut app.config.close_to_tray,
-            "Continuer après avoir fermé la fenêtre",
-            "La synchronisation reste active en arrière-plan.",
+            Text::KeepRunning.get(),
+            Text::BackgroundHint.get(),
         );
         ui::switch(
             ui,
             &mut app.config.minimize_to_tray,
-            "Masquer l’application quand je la réduis",
+            Text::HideMinimized.get(),
             "",
         );
     });
     ui.add_space(8.0);
-    ui::group(ui, "Repères du graphique", |ui| {
-        ui::muted(
-            ui,
-            "Repères visuels uniquement. Ils ne déclenchent aucune alarme.",
-        );
+    ui::group(ui, Text::ChartGuides.get(), |ui| {
+        ui::muted(ui, Text::GuidesHint.get());
         let max_low = app.config.high.saturating_sub(1).min(200);
         bound(
             ui,
-            "Repère bas · rouge",
+            Text::LowGuide.get(),
             &mut app.config.low,
             40,
             max_low,
@@ -401,7 +391,7 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
         );
         bound(
             ui,
-            "Repère haut · jaune",
+            Text::HighGuide.get(),
             &mut app.config.high,
             app.config.low + 1,
             400,
@@ -409,40 +399,42 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
         );
     });
     ui.add_space(8.0);
-    ui::group(ui, "Historique sur cet ordinateur", |ui| {
-        row(ui, "Conservation", |ui| {
+    ui::group(ui, Text::LocalHistory.get(), |ui| {
+        row(ui, Text::Retention.get(), |ui| {
             egui::ComboBox::from_id_salt("history_days")
-                .selected_text(format!("{} jours", app.config.history_days))
+                .selected_text(format!(
+                    "{} · {}",
+                    Text::Days.get(),
+                    app.config.history_days
+                ))
                 .show_ui(ui, |ui| {
                     for days in 1..=30 {
-                        ui.selectable_value(
-                            &mut app.config.history_days,
-                            days,
-                            format!("{days} jours"),
-                        );
+                        ui.selectable_value(&mut app.config.history_days, days, days.to_string());
                     }
                 });
         });
         ui::muted(
             ui,
             format!(
-                "{} mesures. Fichier local non chiffré par l’application.",
-                app.snapshot.readings.len()
+                "{} · {}. {}",
+                Text::Count.get(),
+                app.snapshot.readings.len(),
+                Text::Unencrypted.get()
             ),
         );
         if !app.confirm_clear {
-            if ui.button("Effacer l’historique…").clicked() {
+            if ui.button(Text::DeleteHistory.get()).clicked() {
                 app.confirm_clear = true;
             }
         } else {
-            ui.label("Effacer les mesures enregistrées sur cet ordinateur ?");
+            ui.label(Text::DeleteQuestion.get());
             ui.horizontal(|ui| {
-                if ui.button("Annuler").clicked() {
+                if ui.button(Text::Cancel.get()).clicked() {
                     app.confirm_clear = false;
                 }
                 if ui
                     .button(
-                        RichText::new("Effacer les mesures")
+                        RichText::new(Text::DeleteReadings.get())
                             .color(theme::ink(ui.ctx(), theme::RED)),
                     )
                     .clicked()
@@ -452,43 +444,45 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
                     app.confirm_clear = false;
                 }
             });
-            ui::muted(
-                ui,
-                "Share pourra récupérer les dernières 24 heures à la prochaine synchronisation.",
-            );
+            ui::muted(ui, Text::ReloadHint.get());
         }
     });
     ui.add_space(8.0);
-    ui::group(ui, "Démo", |ui| {
-        ui::muted(ui, "Des mesures fictives pour découvrir l’application.");
+    ui::group(ui, Text::Demo.get(), |ui| {
+        ui::muted(ui, Text::DemoHint.get());
         if app.snapshot.state == State::Simulation {
-            if ui.button("Quitter la démo").clicked() {
+            if ui.button(Text::ExitDemo.get()).clicked() {
                 app.restore();
             }
-        } else if ui.button("Essayer la démo").clicked() {
+        } else if ui.button(Text::TryDemo.get()).clicked() {
             app.demo();
         }
     });
     ui.add_space(8.0);
-    ui::group(ui, "À propos", |ui| {
+    ui::group(ui, Text::About.get(), |ui| {
         ui::muted(
             ui,
             format!(
-                "Easy Glucose {} · Application native · Licence MIT",
-                env!("CARGO_PKG_VERSION")
+                "Easy Glucose {} · {} · {}",
+                env!("CARGO_PKG_VERSION"),
+                Text::NativeApp.get(),
+                Text::License.get()
             ),
         );
         ui::muted(
             ui,
-            "Consultation secondaire, sans alarme. Utilisez l’application de votre capteur pour les décisions de traitement. Share et LibreLinkUp utilisent des protocoles non officiels.",
+            format!("{} {}", Text::SecondaryUse.get(), Text::Protocols.get()),
         );
+        ui::muted(ui, Text::Schedule.get());
         ui::muted(
             ui,
-            "Synchronisation : environ 5 min pour Dexcom, 1 min pour les autres sources. Une mesure de 10 minutes ou plus est signalée comme ancienne.",
-        );
-        ui::muted(
-            ui,
-            "Raccourcis : ⌘/Ctrl + , réglages · R actualiser · W mini-fenêtre",
+            format!(
+                "{} · ⌘/Ctrl + , ({}) · R ({}) · W ({})",
+                Text::Shortcuts.get(),
+                Text::Settings.get(),
+                Text::Refresh.get(),
+                Text::Widget.get()
+            ),
         );
     });
 }
@@ -507,7 +501,7 @@ fn bound(ui: &mut egui::Ui, label: &str, value: &mut u16, min: u16, max: u16, un
                 *value > min,
                 egui::Button::new("−").min_size(egui::vec2(42.0, 42.0)),
             )
-            .on_hover_text("Diminuer de 1 mg/dL")
+            .on_hover_text(Text::Decrease.get())
             .clicked()
         {
             *value = value.saturating_sub(1).max(min);
@@ -519,13 +513,13 @@ fn bound(ui: &mut egui::Ui, label: &str, value: &mut u16, min: u16, max: u16, un
                 .suffix(" mg/dL")
                 .speed(0.0),
         )
-        .on_hover_text("Cliquez pour saisir une valeur");
+        .on_hover_text(Text::EnterValue.get());
         if ui
             .add_enabled(
                 *value < max,
                 egui::Button::new("+").min_size(egui::vec2(42.0, 42.0)),
             )
-            .on_hover_text("Augmenter de 1 mg/dL")
+            .on_hover_text(Text::Increase.get())
             .clicked()
         {
             *value = value.saturating_add(1).min(max);
@@ -534,4 +528,27 @@ fn bound(ui: &mut egui::Ui, label: &str, value: &mut u16, min: u16, max: u16, un
             ui::muted(ui, format!("{} mmol/L", Unit::Mmol.format((*value).into())));
         }
     });
+}
+
+fn language_picker(app: &mut App, ui: &mut egui::Ui) {
+    let previous = app.config.language.clone();
+    ui.horizontal(|ui| {
+        ui.label(Text::Language.get());
+        let name = crate::i18n::LANGUAGES
+            .iter()
+            .find(|(id, _)| Some(*id) == previous.as_deref())
+            .map_or(Text::SystemLanguage.get(), |(_, name)| *name);
+        egui::ComboBox::from_id_salt("interface_language")
+            .selected_text(name)
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut app.config.language, None, Text::SystemLanguage.get());
+                for &(code, name) in crate::i18n::LANGUAGES {
+                    ui.selectable_value(&mut app.config.language, Some(code.to_owned()), name);
+                }
+            });
+    });
+    if previous != app.config.language {
+        app.apply_language();
+        app.mark_config();
+    }
 }

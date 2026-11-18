@@ -1,3 +1,4 @@
+use crate::i18n::Text;
 use crate::{
     app::App,
     services::State,
@@ -32,7 +33,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 ui::logo(ui, 18.0);
                 ui.add(egui::Label::new(
                     RichText::new(if app.snapshot.state == State::Simulation {
-                        "SIMULATION"
+                        Text::Demo.get()
                     } else {
                         "Easy Glucose"
                     })
@@ -45,12 +46,12 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                     }),
                 ));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let close = ui.small_button("×").on_hover_text("Masquer le widget");
+                    let close = ui.small_button("×").on_hover_text(Text::HideWidget.get());
                     if close.clicked() {
                         app.config.widget_open = false;
                         app.mark_config();
                     }
-                    let open = ui.small_button("↗").on_hover_text("Ouvrir Ma glycémie");
+                    let open = ui.small_button("↗").on_hover_text(Text::OpenApp.get());
                     if open.clicked() {
                         app.show_dashboard();
                     }
@@ -62,7 +63,8 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
             handle.max.x = header.inner - 2.0;
             let drag = ui
                 .interact(handle, ui.id().with("widget_drag"), egui::Sense::drag())
-                .on_hover_cursor(egui::CursorIcon::Grab);
+                .on_hover_cursor(egui::CursorIcon::Grab)
+                .on_hover_text(Text::WidgetPosition.get());
             if !cfg!(target_os = "macos") && drag.drag_started_by(egui::PointerButton::Primary) {
                 ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
             }
@@ -98,8 +100,9 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                     ui.horizontal(|ui| {
                         ui.label(
                             RichText::new(format!(
-                                "{time} · {age} min{}",
-                                if stale { " · ancienne" } else { "" }
+                                "{time} · {age} {} {}",
+                                Text::Minute.get(),
+                                if stale { Text::Stale.get() } else { "" }
                             ))
                             .size(10.0)
                             .color(if stale {
@@ -132,18 +135,26 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                     ui.horizontal(|ui| {
                         ui::muted(
                             ui,
-                            r.measured_at
-                                .with_timezone(&chrono::Local)
-                                .format("Mesurée à %H:%M")
-                                .to_string(),
+                            format!(
+                                "{} · {}",
+                                Text::Measured.get(),
+                                r.measured_at.with_timezone(&chrono::Local).format("%H:%M")
+                            ),
                         );
                         if let Some((d, m)) = crate::core::recent_delta(&app.snapshot.readings) {
-                            ui::muted(ui, format!("{} / {m} min", app.config.unit.delta(d)));
+                            ui::muted(
+                                ui,
+                                format!(
+                                    "{} / {m} {}",
+                                    app.config.unit.delta(d),
+                                    Text::Minute.get()
+                                ),
+                            );
                         }
                     });
                 }
             } else {
-                ui::muted(ui, "En attente de mesures");
+                ui::muted(ui, Text::Waiting.get());
             }
             dashboard::chart(
                 ui,

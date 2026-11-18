@@ -1,0 +1,7 @@
+[
+  ["en", "English"], ["bg", "Български"], ["cs", "Čeština"], ["da", "Dansk"],
+  ["de", "Deutsch"], ["el", "Ελληνικά"], ["es", "Español"], ["fi", "Suomi"],
+  ["fr", "Français"], ["hu", "Magyar"], ["it", "Italiano"], ["nb", "Norsk bokmål"],
+  ["nl", "Nederlands"], ["pl", "Polski"], ["pt", "Português"], ["ro", "Română"],
+  ["sk", "Slovenčina"], ["sv", "Svenska"], ["tr", "Türkçe"], ["uk", "Українська"]
+]

@@ -1,3 +1,4 @@
+use crate::i18n::Text;
 use crate::{
     app::{App, Page},
     services::State,
@@ -126,7 +127,8 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 ui::logo(ui, 18.0);
                 ui.label(RichText::new("Easy Glucose").strong().size(14.0));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if header_button(ui, egui::Button::new("×"), "Fermer l’aperçu").clicked() {
+                    if header_button(ui, egui::Button::new("×"), Text::ClosePreview.get()).clicked()
+                    {
                         app.popover.close(now);
                     }
                     if header_button(
@@ -135,7 +137,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                             egui::Image::new(egui::include_image!("../../assets/settings.svg"))
                                 .fit_to_exact_size(egui::vec2(16.0, 16.0)),
                         ),
-                        "Réglages",
+                        Text::Settings.get(),
                     )
                     .clicked()
                     {
@@ -148,7 +150,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                             egui::Image::new(egui::include_image!("../../assets/dashboard.svg"))
                                 .fit_to_exact_size(egui::vec2(16.0, 16.0)),
                         ),
-                        "Ouvrir l’app",
+                        Text::OpenApp.get(),
                     )
                     .clicked()
                     {
@@ -157,7 +159,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 });
             });
             if app.snapshot.state == State::Simulation {
-                ui.colored_label(theme::ink(ctx, theme::ORANGE), "DÉMO · mesures fictives");
+                ui.colored_label(theme::ink(ctx, theme::ORANGE), Text::DemoReadings.get());
             }
             ui.horizontal(|ui| {
                 let current = app.snapshot.readings.last();
@@ -187,7 +189,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                         }),
                 );
             } else {
-                ui::muted(ui, "Aucune mesure · connectez une source dans les réglages");
+                ui::muted(ui, Text::NoSource.get());
             }
             ui.label(
                 RichText::new(format!(
@@ -203,12 +205,12 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
             }
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                ui.label(RichText::new("Historique").size(12.0).color(p.muted));
+                ui.label(RichText::new(Text::History.get()).size(12.0).color(p.muted));
                 ui.add_space(4.0);
                 ui.spacing_mut().item_spacing.x = 4.0;
                 for hours in [1, 3, 6, 12, 24] {
                     let selected = app.popover.hours == hours;
-                    let label = format!("{hours} h");
+                    let label = format!("{hours} {}", Text::Hour.get());
                     let response = ui.add_sized(
                         [48.0, 26.0],
                         egui::Button::selectable(
