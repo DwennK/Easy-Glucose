@@ -429,7 +429,7 @@ impl eframe::App for App {
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
                         let width = match self.page {
-                            Page::Dashboard => 980.0,
+                            Page::Dashboard => 640.0,
                             Page::Settings => 800.0,
                             Page::Onboarding => 620.0,
                         };

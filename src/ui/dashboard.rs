@@ -5,6 +5,7 @@ use crate::{
         GAP_SECONDS, Reading, STALE_SECONDS, Unit, chart_segments, nearest_reading, recent_delta,
     },
     services::State,
+    storage::Config,
     ui::{self, theme},
 };
 use chrono::{Local, Utc};
@@ -178,7 +179,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ui.horizontal(|ui| {
                 ui.label(RichText::new(Text::History.get()).size(18.0).strong());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let durations = [1, 3, 6, 12, 24]
+                    let durations = Config::HISTORY_PERIODS
                         .map(|hours| (hours, format!("{hours} {}", Text::Hour.get())));
                     let options = durations
                         .each_ref()
@@ -194,7 +195,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 "main_chart",
                 &app.snapshot.readings,
                 &app.config,
-                195.0,
+                ui.available_width() / 1.8,
                 false,
             );
             ui.add_space(8.0);
@@ -248,7 +249,7 @@ pub fn chart(
     ui: &mut egui::Ui,
     id: &str,
     readings: &[Reading],
-    config: &crate::storage::Config,
+    config: &Config,
     height: f32,
     mini: bool,
 ) {
@@ -313,9 +314,7 @@ pub fn chart(
         .set_margin_fraction(egui::vec2(0.02, 0.0))
         .x_grid_spacer(egui_plot::uniform_grid_spacer(move |input| {
             let hours = (input.bounds.1 - input.bounds.0) / 3600.0;
-            if hours <= 1.5 {
-                [300.0, 900.0, 1800.0]
-            } else if hours <= 6.5 {
+            if hours <= 6.5 {
                 [900.0, 3600.0, 7200.0]
             } else {
                 [3600.0, 10800.0, 21600.0]

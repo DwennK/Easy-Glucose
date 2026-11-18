@@ -89,12 +89,14 @@ impl Default for Config {
     }
 }
 impl Config {
+    pub const HISTORY_PERIODS: [u8; 4] = [3, 6, 12, 24];
+
     pub fn normalize(&mut self) {
         self.history_days = self.history_days.clamp(1, 30);
         self.low = self.low.clamp(40, 200);
         self.high = self.high.clamp(self.low + 1, 400);
-        if ![1, 3, 6, 12, 24].contains(&self.period_hours) {
-            self.period_hours = 6;
+        if !Self::HISTORY_PERIODS.contains(&self.period_hours) {
+            self.period_hours = if self.period_hours == 1 { 3 } else { 6 };
         }
         if self
             .widget_position
@@ -335,6 +337,15 @@ mod tests {
         assert_eq!(s.load_cache(7).expect("load"), h);
         s.clear_cache().expect("clear");
         assert!(s.load_cache(7).expect("empty").is_empty());
+    }
+    #[test]
+    fn legacy_one_hour_history_opens_at_three_hours() {
+        let dir = tempfile::tempdir().expect("directory");
+        let store = Store {
+            directory: dir.path().into(),
+        };
+        fs::write(dir.path().join("settings.json"), r#"{"period_hours":1}"#).expect("fixture");
+        assert_eq!(store.load_config().expect("load").period_hours, 3);
     }
     #[test]
     fn corrupt_data_not_silently_erased() {

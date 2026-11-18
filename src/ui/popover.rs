@@ -2,6 +2,7 @@ use crate::i18n::Text;
 use crate::{
     app::{App, Page},
     services::State,
+    storage::Config,
     ui::{self, dashboard, theme},
 };
 use eframe::egui::{self, RichText};
@@ -208,7 +209,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 ui.label(RichText::new(Text::History.get()).size(12.0).color(p.muted));
                 ui.add_space(4.0);
                 ui.spacing_mut().item_spacing.x = 4.0;
-                for hours in [1, 3, 6, 12, 24] {
+                for hours in Config::HISTORY_PERIODS {
                     let selected = app.popover.hours == hours;
                     let label = format!("{hours} {}", Text::Hour.get());
                     let response = ui.add_sized(

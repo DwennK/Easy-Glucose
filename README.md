@@ -26,7 +26,7 @@ To view your own readings, run `cargo run --release --locked` and open **Setting
 | <img src="docs/images/menu-preview.png" width="420" alt="Compact glucose preview with two action buttons and a close button in the upper right"> | <img src="docs/images/widget.png" width="320" alt="Floating widget showing the glucose value, trend, reading time, and chart"> |
 | Click the glucose value to open the chart. The two buttons next to the close button open the dashboard and settings. Press Esc or click outside the preview to close it. | Drag the widget by its header. It remembers its position. Choose from three sizes and turn on **Always on top** to keep your reading visible over other windows. |
 
-In **My glucose**, choose a time range of 1, 3, 6, 12, or 24 hours. Each point represents a reading, and gaps in the data remain visible. Hover over the chart to see the value and time of the nearest reading. Readings at least ten minutes old are marked as stale, even when the connection is working.
+In **My glucose**, choose a time range of 3, 6, 12, or 24 hours. Each point represents a reading, and gaps in the data remain visible. Hover over the chart to see the value and time of the nearest reading. Readings at least ten minutes old are marked as stale, even when the connection is working.
 
 Right-click the macOS menu bar item or open the Windows system tray menu to access the main window, settings, and floating widget, or to quit the app.
 
