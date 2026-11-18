@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="tile" x1="180" y1="80" x2="840" y2="944" gradientUnits="userSpaceOnUse"><stop stop-color="#4098FF"/><stop offset="1" stop-color="#1556D3"/></linearGradient>
+    <linearGradient id="left" x1="280" y1="400" x2="510" y2="820" gradientUnits="userSpaceOnUse"><stop stop-color="#F7FBFF"/><stop offset="1" stop-color="#D9E9FF"/></linearGradient>
+  </defs>
+  <rect x="48" y="48" width="928" height="928" rx="208" fill="url(#tile)"/>
+  <path d="m512 255 270 148v290L512 841 242 693V403Z" fill="#0B3DAB" fill-opacity=".22"/>
+  <path d="m512 216 270 148v290L512 802 242 654V364Z" fill="url(#left)"/>
+  <path d="m512 512 270-148v290L512 802Z" fill="#AFCFF6"/>
+  <path d="m512 216 270 148-270 148-270-148Z" fill="#FFF"/>
+  <path d="m242 364 270 148 270-148M512 512v290" stroke="#E9F3FF" stroke-width="10" stroke-linejoin="round"/>
+  <path d="m512 216 270 148v290L512 802 242 654V364Z" stroke="#FFF" stroke-opacity=".65" stroke-width="10" stroke-linejoin="round"/>
+  <!-- Fine, irregular sugar grains, deliberately unlike the pips on a die. -->
+  <g fill="#C4D9F1" fill-opacity=".8">
+    <path d="m412 342 7-3 3 7-7 3Zm26 18 5-1 1 5-5 1Zm43-43 6 2-2 6-6-2Zm64 59 7-2 2 7-7 2Zm19-19 4 1-1 4-4-1Zm35 29 6-3 3 6-6 3Zm-85 19 4-1 1 4-4 1Z"/>
+    <path d="m319 468 6 3-3 6-6-3Zm24 19 4 2-2 4-4-2Zm-9 32 6 3-3 6-6-3Zm50 60 5 2-2 5-5-2Zm31 47 7 3-3 7-7-3Zm-18 24 4 2-2 4-4-2Zm43 47 6 2-2 6-6-2Z"/>
+  </g>
+  <g fill="#7CA8E0" fill-opacity=".75">
+    <path d="m652 487 6-3 3 6-6 3Zm18-22 4-2 2 4-4 2Zm-52 81 5-2 2 5-5 2Zm32 40 7-3 3 7-7 3Zm-12 23 4-1 1 4-4 1Zm-54 67 6-3 3 6-6 3Z"/>
+  </g>
+</svg>
