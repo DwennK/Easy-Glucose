@@ -37,11 +37,10 @@ if __name__ == '__main__':
         offset += len(data)
     (assets / 'icon.ico').write_bytes(headers + b''.join(entries))
     chunks = []
-    # Point sizes have distinct standard and Retina slots even when the pixel
-    # dimensions coincide (e.g. 32pt at 1x and 16pt at 2x).
+    # Finder can corrupt embedded 16pt/32pt representations when applying
+    # macOS icon styling. Let Icon Services scale down the 128pt vector render
+    # for those views. Keep native 1x/2x slots for the larger point sizes.
     mac_slots = [
-        (b'icp4', 16), (b'ic11', 32),
-        (b'icp5', 32), (b'ic12', 64),
         (b'ic07', 128), (b'ic13', 256),
         (b'ic08', 256), (b'ic14', 512),
         (b'ic09', 512), (b'ic10', 1024),
