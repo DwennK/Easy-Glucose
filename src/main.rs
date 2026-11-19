@@ -5,6 +5,28 @@ use fs2::FileExt;
 use std::fs::OpenOptions;
 use tracing_subscriber::prelude::*;
 
+fn application_icon() -> egui::IconData {
+    // In a macOS bundle, the empty IconData tells eframe to keep the native
+    // multi-resolution ICNS. Omitting the icon selects eframe's own default.
+    #[cfg(target_os = "macos")]
+    if std::env::current_exe()
+        .ok()
+        .and_then(|exe| {
+            exe.parent()?
+                .parent()
+                .map(|p| p.join("Resources/AppIcon.icns"))
+        })
+        .is_some_and(|icon| icon.is_file())
+    {
+        return egui::IconData::default();
+    }
+    egui::IconData {
+        rgba: icon_rgba(256, false),
+        width: 256,
+        height: 256,
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Fixed filter: dependencies cannot accidentally log HTTP requests or authentication URLs.
     let started = std::time::Instant::now();
@@ -50,11 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .with_title_shown(!cfg!(target_os = "macos"))
             .with_inner_size([600.0, 570.0])
             .with_min_inner_size([510.0, 440.0])
-            .with_icon(egui::IconData {
-                rgba: icon_rgba(64, false),
-                width: 64,
-                height: 64,
-            }),
+            .with_icon(application_icon()),
         renderer: eframe::Renderer::Glow,
         vsync: true,
         centered: true,

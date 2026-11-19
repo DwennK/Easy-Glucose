@@ -37,7 +37,16 @@ if __name__ == '__main__':
         offset += len(data)
     (assets / 'icon.ico').write_bytes(headers + b''.join(entries))
     chunks = []
-    for tag, size in [(b'icp4', 16), (b'icp5', 32), (b'icp6', 64), (b'ic07', 128), (b'ic08', 256), (b'ic09', 512), (b'ic10', 1024)]:
+    # Point sizes have distinct standard and Retina slots even when the pixel
+    # dimensions coincide (e.g. 32pt at 1x and 16pt at 2x).
+    mac_slots = [
+        (b'icp4', 16), (b'ic11', 32),
+        (b'icp5', 32), (b'ic12', 64),
+        (b'ic07', 128), (b'ic13', 256),
+        (b'ic08', 256), (b'ic14', 512),
+        (b'ic09', 512), (b'ic10', 1024),
+    ]
+    for tag, size in mac_slots:
         data = png(size)
         chunks.append(tag + struct.pack('>I', len(data)+8) + data)
     data = b''.join(chunks)
