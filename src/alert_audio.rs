@@ -2,7 +2,7 @@ use crate::{
     alerts::{Imported, Intensity, Kind, Rule},
     i18n::Text,
 };
-use rodio::{Decoder, OutputStream, Sink, buffer::SamplesBuffer};
+use rodio::{Decoder, OutputStream, Sink};
 use sha2::{Digest, Sha256};
 use std::{
     fs,
@@ -99,22 +99,20 @@ pub fn import(source: &Path, directory: &Path) -> Result<Imported, Text> {
 pub fn play(rule: &Rule, directory: &Path, cancelled: impl Fn() -> bool) -> Result<(), Text> {
     let (_device, handle) = OutputStream::try_default().map_err(|_| Text::AudioError)?;
     let sink = Sink::try_new(&handle).map_err(|_| Text::AudioError)?;
-    sink.set_volume(rule.intensity.gain());
-    let mut fallback = false;
-    if rule.use_import {
-        let source = rule
-            .imported
-            .as_ref()
-            .and_then(|i| fs::File::open(i.path(directory).ok()?).ok())
-            .and_then(|f| Decoder::new_wav(std::io::BufReader::new(f)).ok());
-        if let Some(source) = source {
-            sink.append(source);
-        } else {
-            fallback = true;
-        }
-    }
-    if !rule.use_import || fallback {
-        sink.append(chime(rule.tone));
+    let imported = rule
+        .imported
+        .as_ref()
+        .filter(|_| rule.use_import)
+        .and_then(|i| fs::File::open(i.path(directory).ok()?).ok())
+        .and_then(|file| Decoder::new_wav(std::io::BufReader::new(file)).ok());
+    let fallback = rule.use_import && imported.is_none();
+    if let Some(source) = imported {
+        sink.set_volume(rule.intensity.gain());
+        sink.append(source);
+    } else {
+        // G7 records each intensity separately. Play its samples at their native level.
+        let bytes = g7_recording(rule.tone, rule.intensity);
+        sink.append(Decoder::new_flac(Cursor::new(bytes)).map_err(|_| Text::AudioError)?);
     }
     while !sink.empty() && !cancelled() {
         std::thread::sleep(Duration::from_millis(40));
@@ -126,30 +124,57 @@ pub fn play(rule: &Rule, directory: &Path, cancelled: impl Fn() -> bool) -> Resu
     }
 }
 
-// Distinct local melodies. The short envelope avoids clicks on note boundaries.
-fn chime(tone: Kind) -> SamplesBuffer<f32> {
-    let notes: &[f32] = match tone {
-        Kind::UrgentLow => &[880., 660., 880., 660.],
-        Kind::Low => &[660., 440.],
-        Kind::High => &[660., 880.],
-        Kind::SignalLoss => &[440., 440., 440.],
-        Kind::Rise => &[440., 660., 880.],
-        Kind::Fall => &[880., 660., 440.],
-    };
-    let rate = 24_000;
-    let mut samples = Vec::new();
-    for &frequency in notes {
-        for i in 0..4800 {
-            let edge = (i.min(4799 - i) as f32 / 240.).min(1.);
-            samples.push(
-                (i as f32 * std::f32::consts::TAU * frequency / rate as f32).sin() * edge * 0.45,
-            );
-        }
-        samples.resize(samples.len() + 1800, 0.);
+fn g7_recording(tone: Kind, intensity: Intensity) -> &'static [u8] {
+    macro_rules! recordings {
+        ($name:literal) => {
+            match intensity {
+                Intensity::Soft => {
+                    include_bytes!(concat!("../assets/sounds/g7/soft/", $name, ".flac"))
+                }
+                Intensity::Medium => {
+                    include_bytes!(concat!("../assets/sounds/g7/medium/", $name, ".flac"))
+                }
+                Intensity::Intense => {
+                    include_bytes!(concat!("../assets/sounds/g7/intense/", $name, ".flac"))
+                }
+            }
+        };
     }
-    SamplesBuffer::new(1, rate, samples)
+    match tone {
+        Kind::UrgentLow => recordings!("urgent_low"),
+        Kind::Low => recordings!("low"),
+        Kind::High => recordings!("high"),
+        Kind::SignalLoss => recordings!("signal_loss"),
+        Kind::Rise => recordings!("rise"),
+        Kind::Fall => recordings!("fall"),
+    }
 }
 
+impl Imported {
+    pub(crate) fn g7_preset(&self) -> Option<(Kind, Intensity)> {
+        for &(digest, title, level) in g7::SOUNDS {
+            if digest != self.digest {
+                continue;
+            }
+            let Some(level) = level else {
+                continue;
+            };
+            let kind = match title {
+                Text::UrgentLow => Kind::UrgentLow,
+                Text::Low => Kind::Low,
+                Text::High => Kind::High,
+                Text::FastRise => Kind::Rise,
+                Text::FastFall => Kind::Fall,
+                // System alerts share signal-loss bytes at each intensity. Preserve
+                // their own imported label unless the supplied file identifies signal loss.
+                Text::SignalLossTone if self.filename == "Perte de signal.wav" => Kind::SignalLoss,
+                _ => continue,
+            };
+            return Some((kind, level));
+        }
+        None
+    }
+}
 pub(crate) fn dispatch(
     alerts: Vec<Kind>,
     rules: Vec<Rule>,
@@ -206,6 +231,81 @@ pub(crate) fn dispatch(
 mod tests {
     use super::*;
 
+    #[test]
+    fn all_default_tones_decode_to_the_original_g7_samples() {
+        use rodio::Source;
+        let original_pcm = [
+            [
+                "e33e6381f21db3ae3f1085165e73070804d5eaa8a58a8303a3d90f8721cf0986",
+                "c3a0a2bffdd61a2423646d872f4df257a1e15de5ef9f0a4f0d84472b65f899c2",
+                "3ec26e3fa9b3c4b7a235a65a693db476ebc6df85f05759789297308b3c3f27a9",
+            ],
+            [
+                "a83b918b93bd227ab9033077cc47e53a3f76732538f9c896170cce4f5fc66ae3",
+                "f1d671a333977495cd2b562c0617a134868ac0c7ba7fbb9e72ea1ece4a6bcc9b",
+                "c7e9b264bc8081ed847c74c845e9935ae72255b449d3927dfe887441dcdd0414",
+            ],
+            [
+                "17485c10541d336ed81c3d30a55b907a66a7e2f1dea1e3cd7cd6d9e953c1bdec",
+                "dfb7e664439415383403b5130e79bfb70ebec436fc8d398f0e3f0fcd32d89013",
+                "4bbf1b525795cae433ec965a9cf116d7d04d252480ddf23e46f6e6ca1adea3d9",
+            ],
+            [
+                "5d86d4a5cf0856f38461d93d60a6e4f75a1d788f1ce19df34102dab980a184db",
+                "c30e4ec70bdffe19f9b678f0ed45093acc26d9483a19a1e513e56587ff56c657",
+                "1b374fe85cc340c2287e5aa501cbeb50347cb708a551b8252842b4c47c463920",
+            ],
+            [
+                "d09e42b91a9af8cb709ae118c3275e98c51d9358d555f323e0a1279651ad5f0e",
+                "2c669f5ac0e4880f7560ca94fb07f9be1671fdc1bd3737912f146316623b3d90",
+                "3f94cf2a6be237e655a2e9d76b4a6371c1d06bae8518bfc3e525f420e424ef82",
+            ],
+            [
+                "6e91d221da2cdc09c33a1da3648c7cd322f0ebdc1419c8d985412b42e5a36dbb",
+                "b1d39b9e5367657aac0661d63d17f4f3b5e248d42c9b0f1eb29dd3047ab53027",
+                "e673fd168f988afca5161ac9e377b07b30f4636c146c5567c0529dc43330d97b",
+            ],
+        ];
+        let settings = crate::alerts::Settings::default();
+        for (kind, hashes) in Kind::ALL.into_iter().zip(original_pcm) {
+            let rule = &settings.rules[kind as usize];
+            assert_eq!(rule.tone, kind);
+            assert!(!rule.use_import);
+            for (level, hash) in [Intensity::Soft, Intensity::Medium, Intensity::Intense]
+                .into_iter()
+                .zip(hashes)
+            {
+                let audio = Decoder::new_flac(Cursor::new(g7_recording(rule.tone, level))).unwrap();
+                assert_eq!((audio.channels(), audio.sample_rate()), (2, 48_000));
+                let bytes: Vec<_> = audio.flat_map(i16::to_le_bytes).collect();
+                assert_eq!(
+                    format!("{:x}", Sha256::digest(bytes)),
+                    hash,
+                    "{kind:?} {level:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn existing_g7_import_becomes_a_selectable_preset() {
+        let mut settings = crate::alerts::Settings::default();
+        let rule = &mut settings.rules[Kind::UrgentLow as usize];
+        rule.enabled = true;
+        rule.use_import = true;
+        rule.imported = Some(Imported {
+            digest: "d9247d0175c3dce1bcc2313e377b99a8d313f42ef1305aa30711cb2ab30ceba5".into(),
+            filename: "Bas urgent.wav".into(),
+        });
+        settings.normalize();
+        let rule = &settings.rules[Kind::UrgentLow as usize];
+        assert!(rule.enabled);
+        assert!(!rule.use_import);
+        assert_eq!(
+            (rule.tone, rule.intensity),
+            (Kind::UrgentLow, Intensity::Soft)
+        );
+    }
     #[test]
     fn imported_wav_survives_source_removal_and_truncated_audio_is_rejected() {
         let source = tempfile::tempdir().unwrap();

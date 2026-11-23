@@ -75,6 +75,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | chacha20 | 0.10.2 | MIT OR Apache-2.0 |
 | chrono | 0.4.45 | MIT OR Apache-2.0 |
 | clang-sys | 1.9.1 | Apache-2.0 |
+| claxon | 0.4.3 | Apache-2.0 |
 | clipboard-win | 5.4.3 | BSL-1.0 |
 | combine | 4.6.9 | MIT |
 | concurrent-queue | 2.5.0 | Apache-2.0 OR MIT |

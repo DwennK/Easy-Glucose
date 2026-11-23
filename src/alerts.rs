@@ -24,6 +24,14 @@ impl Kind {
         Self::Rise,
         Self::Fall,
     ];
+    pub fn sound_label(self) -> String {
+        let title = if self == Self::SignalLoss {
+            Text::SignalLossTone
+        } else {
+            self.title()
+        };
+        format!("G7 · {}", title.get())
+    }
     pub fn title(self) -> Text {
         match self {
             Self::UrgentLow => Text::UrgentLow,
@@ -104,6 +112,17 @@ impl Default for Settings {
 }
 impl Settings {
     pub fn normalize(&mut self) {
+        for rule in &mut self.rules {
+            if rule.use_import
+                && let Some((tone, intensity)) =
+                    rule.imported.as_ref().and_then(Imported::g7_preset)
+            {
+                rule.tone = tone;
+                rule.intensity = intensity;
+                rule.use_import = false;
+                rule.imported = None;
+            }
+        }
         self.urgent = self.urgent.clamp(40, 100);
         self.low = self.low.clamp(self.urgent + 1, 200);
         self.high = self.high.clamp(self.low + 1, 400);

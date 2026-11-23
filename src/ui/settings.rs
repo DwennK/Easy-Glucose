@@ -698,11 +698,9 @@ fn alerts(app: &mut App, ui: &mut egui::Ui) {
         ui.separator();
         let imported = rule.imported.as_ref().map(|f| f.label());
         let tone_label = if rule.use_import {
-            imported
-                .clone()
-                .unwrap_or_else(|| rule.tone.title().get().into())
+            imported.clone().unwrap_or_else(|| rule.tone.sound_label())
         } else {
-            rule.tone.title().get().into()
+            rule.tone.sound_label()
         };
         row(ui, Text::Sound.get(), |ui| {
             egui::ComboBox::from_id_salt("alert_tone")
@@ -714,7 +712,7 @@ fn alerts(app: &mut App, ui: &mut egui::Ui) {
                         if ui
                             .selectable_label(
                                 !rule.use_import && rule.tone == tone,
-                                tone.title().get(),
+                                tone.sound_label(),
                             )
                             .clicked()
                         {

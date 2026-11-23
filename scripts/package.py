@@ -48,6 +48,8 @@ else:
 for name in ['README.md','LICENSE','THIRD_PARTY.md']:
     destination = bundle if windows else bundle / 'Contents' / 'Resources'
     shutil.copy2(ROOT / name, destination / name)
+shutil.copy2(ROOT/'assets'/'sounds'/'g7'/'README.md',
+             (bundle if windows else bundle/'Contents'/'Resources')/'Dexcom-G7-audio.md')
 shutil.copytree(ROOT/'docs', (bundle if windows else bundle/'Contents'/'Resources')/'docs', dirs_exist_ok=True)
 # Include original license/notice files for dependencies in distribution archives.
 licenses = ROOT / 'dist' / 'dependency-licenses'

@@ -17,7 +17,7 @@ fn imported_g7_sound_and_intensity_survive_all_locales_and_a_restart() {
     rule.intensity = Intensity::Soft;
     rule.use_import = true;
     rule.imported = Some(Imported {
-        digest: "880baa2159e8f1d06d5ed3f24be87858fd3ac4fdb05e7bcafe010ca0aa487d6b".into(),
+        digest: "2a72602ee14dfb37b250381dbae2a404729cfe32e6569967d32dc3958394599c".into(),
         filename: "renamed.wav".into(),
     });
     let expected = config.alerts.clone();
@@ -30,11 +30,7 @@ fn imported_g7_sound_and_intensity_survive_all_locales_and_a_restart() {
         let rule = &restored.alerts.rules[Kind::UrgentLow as usize];
         assert_eq!(
             rule.imported.as_ref().unwrap().label(),
-            format!(
-                "G7 · {} · {}",
-                Text::UrgentLow.get(),
-                Text::MediumTone.get()
-            )
+            format!("G7 · {}", Text::UrgentLow.get())
         );
         assert_eq!(rule.intensity.title().get(), Text::SoftTone.get());
     }
