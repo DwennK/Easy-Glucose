@@ -15,9 +15,11 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | accesskit_winit | 0.29.2 | Apache-2.0 |
 | adler2 | 2.0.1 | 0BSD OR MIT OR Apache-2.0 |
 | ahash | 0.8.12 | MIT OR Apache-2.0 |
+| aho-corasick | 1.1.5 | Unlicense OR MIT |
 | android-activity | 0.6.1 | MIT OR Apache-2.0 |
 | android-properties | 0.2.2 | MIT |
 | android_system_properties | 0.1.6 | MIT OR Apache-2.0 |
+| anyhow | 1.0.105 | MIT OR Apache-2.0 |
 | arboard | 3.7.0 | MIT OR Apache-2.0 |
 | arrayref | 0.3.9 | BSD-2-Clause |
 | arrayvec | 0.7.8 | MIT OR Apache-2.0 |
@@ -44,6 +46,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | bitflags | 1.3.2 | MIT/Apache-2.0 |
 | bitflags | 2.13.2 | MIT OR Apache-2.0 |
 | block-buffer | 0.10.4 | MIT OR Apache-2.0 |
+| block-buffer | 0.12.1 | MIT OR Apache-2.0 |
 | block2 | 0.5.1 | MIT |
 | block2 | 0.6.2 | MIT |
 | blocking | 1.7.0 | Apache-2.0 OR MIT |
@@ -66,6 +69,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | clipboard-win | 5.4.3 | BSL-1.0 |
 | combine | 4.6.9 | MIT |
 | concurrent-queue | 2.5.0 | Apache-2.0 OR MIT |
+| const-oid | 0.10.3 | Apache-2.0 OR MIT |
 | core-foundation | 0.10.1 | MIT OR Apache-2.0 |
 | core-foundation | 0.9.4 | MIT OR Apache-2.0 |
 | core-foundation-sys | 0.8.7 | MIT OR Apache-2.0 |
@@ -78,9 +82,12 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | crossbeam-utils | 0.8.23 | MIT OR Apache-2.0 |
 | crunchy | 0.2.4 | MIT |
 | crypto-common | 0.1.7 | MIT OR Apache-2.0 |
+| crypto-common | 0.2.2 | MIT OR Apache-2.0 |
 | cursor-icon | 1.2.0 | MIT OR Apache-2.0 OR Zlib |
 | data-url | 0.3.2 | MIT OR Apache-2.0 |
+| derivative | 2.2.0 | MIT/Apache-2.0 |
 | digest | 0.10.7 | MIT OR Apache-2.0 |
+| digest | 0.11.3 | MIT OR Apache-2.0 |
 | directories | 6.0.0 | MIT OR Apache-2.0 |
 | dirs | 6.0.0 | MIT OR Apache-2.0 |
 | dirs-sys | 0.5.0 | MIT OR Apache-2.0 |
@@ -137,6 +144,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | getrandom | 0.3.4 | MIT OR Apache-2.0 |
 | getrandom | 0.4.3 | MIT OR Apache-2.0 |
 | gl_generator | 0.14.0 | Apache-2.0 |
+| glob | 0.3.4 | MIT OR Apache-2.0 |
 | glow | 0.16.0 | MIT OR Apache-2.0 OR Zlib |
 | glutin | 0.32.3 | Apache-2.0 |
 | glutin-winit | 0.5.0 | MIT |
@@ -151,6 +159,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | http-body | 1.1.0 | MIT |
 | http-body-util | 0.1.5 | MIT |
 | httparse | 1.10.1 | MIT OR Apache-2.0 |
+| hybrid-array | 0.4.15 | MIT OR Apache-2.0 |
 | hyper | 1.12.0 | MIT |
 | hyper-rustls | 0.27.10 | Apache-2.0 OR ISC OR MIT |
 | hyper-util | 0.1.21 | MIT |
@@ -205,6 +214,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | ndk-sys | 0.6.0+11769913 | MIT OR Apache-2.0 |
 | nix | 0.31.4 | MIT |
 | nohash-hasher | 0.2.0 | Apache-2.0 OR MIT |
+| normpath | 1.5.2 | MIT OR Apache-2.0 |
 | num-traits | 0.2.19 | MIT OR Apache-2.0 |
 | num_enum | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 |
 | num_enum_derive | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 |
@@ -282,6 +292,9 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | redox_syscall | 0.5.18 | MIT |
 | redox_syscall | 0.9.5 | MIT |
 | redox_users | 0.5.3 | MIT |
+| regex | 1.13.2 | MIT OR Apache-2.0 |
+| regex-automata | 0.4.19 | MIT OR Apache-2.0 |
+| regex-syntax | 0.8.12 | MIT OR Apache-2.0 |
 | reqwest | 0.12.28 | MIT OR Apache-2.0 |
 | resvg | 0.45.1 | Apache-2.0 OR MIT |
 | rgb | 0.8.53 | MIT |
@@ -311,7 +324,9 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | serde_spanned | 1.1.3 | MIT OR Apache-2.0 |
 | serde_urlencoded | 0.7.1 | MIT/Apache-2.0 |
 | sha1 | 0.10.7 | MIT OR Apache-2.0 |
+| sha1 | 0.11.0 | MIT OR Apache-2.0 |
 | sha2 | 0.10.9 | MIT OR Apache-2.0 |
+| sha2 | 0.11.1 | MIT OR Apache-2.0 |
 | sharded-slab | 0.1.7 | MIT |
 | shlex | 2.0.1 | MIT OR Apache-2.0 |
 | signal-hook-registry | 1.4.8 | MIT OR Apache-2.0 |
@@ -334,6 +349,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | strict-num | 0.1.1 | MIT |
 | subtle | 2.6.1 | BSD-3-Clause |
 | svgtypes | 0.15.3 | Apache-2.0 OR MIT |
+| syn | 1.0.109 | MIT OR Apache-2.0 |
 | syn | 2.0.119 | MIT OR Apache-2.0 |
 | syn | 3.0.10 | MIT OR Apache-2.0 |
 | sync_wrapper | 1.0.2 | Apache-2.0 |
@@ -369,17 +385,24 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | tray-icon | 0.26.1 | MIT OR Apache-2.0 |
 | try-lock | 0.2.5 | MIT |
 | ttf-parser | 0.25.1 | MIT OR Apache-2.0 |
+| typed-path | 0.12.4 | MIT OR Apache-2.0 |
 | typenum | 1.20.1 | MIT OR Apache-2.0 |
 | uds_windows | 1.2.1 | MIT |
 | unicode-ident | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 |
 | unicode-segmentation | 1.13.3 | MIT OR Apache-2.0 |
 | untrusted | 0.9.0 | ISC |
+| ureq | 3.5.2 | MIT OR Apache-2.0 |
+| ureq-proto | 0.7.1 | MIT OR Apache-2.0 |
 | url | 2.5.8 | MIT OR Apache-2.0 |
 | usvg | 0.45.1 | Apache-2.0 OR MIT |
+| utf8-zero | 0.8.1 | MIT OR Apache-2.0 |
 | utf8_iter | 1.1.0 | Apache-2.0 OR MIT |
 | utf_types | 1.0.0 | Apache-2.0 OR MIT |
 | uuid | 1.29.3 | Apache-2.0 OR MIT |
+| velopack | 1.2.161 | MIT |
 | version_check | 0.9.5 | MIT/Apache-2.0 |
+| wait-timeout | 0.2.1 | MIT/Apache-2.0 |
+| waitpid-any | 0.3.1 | MIT OR Apache-2.0 |
 | walkdir | 2.5.0 | Unlicense/MIT |
 | want | 0.3.2 | MIT |
 | wasi | 0.11.1+wasi-snapshot-preview1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
@@ -410,15 +433,19 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | winapi-util | 0.1.11 | Unlicense OR MIT |
 | winapi-x86_64-pc-windows-gnu | 0.4.0 | MIT/Apache-2.0 |
 | windows | 0.61.3 | MIT OR Apache-2.0 |
+| windows | 0.62.2 | MIT OR Apache-2.0 |
 | windows-collections | 0.2.0 | MIT OR Apache-2.0 |
+| windows-collections | 0.3.2 | MIT OR Apache-2.0 |
 | windows-core | 0.61.2 | MIT OR Apache-2.0 |
 | windows-core | 0.62.2 | MIT OR Apache-2.0 |
 | windows-future | 0.2.1 | MIT OR Apache-2.0 |
+| windows-future | 0.3.2 | MIT OR Apache-2.0 |
 | windows-implement | 0.60.2 | MIT OR Apache-2.0 |
 | windows-interface | 0.59.3 | MIT OR Apache-2.0 |
 | windows-link | 0.1.3 | MIT OR Apache-2.0 |
 | windows-link | 0.2.1 | MIT OR Apache-2.0 |
 | windows-numerics | 0.2.0 | MIT OR Apache-2.0 |
+| windows-numerics | 0.3.1 | MIT OR Apache-2.0 |
 | windows-registry | 0.6.1 | MIT OR Apache-2.0 |
 | windows-result | 0.3.4 | MIT OR Apache-2.0 |
 | windows-result | 0.4.1 | MIT OR Apache-2.0 |
@@ -431,6 +458,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | windows-targets | 0.52.6 | MIT OR Apache-2.0 |
 | windows-targets | 0.53.5 | MIT OR Apache-2.0 |
 | windows-threading | 0.1.0 | MIT OR Apache-2.0 |
+| windows-threading | 0.2.1 | MIT OR Apache-2.0 |
 | windows_aarch64_gnullvm | 0.52.6 | MIT OR Apache-2.0 |
 | windows_aarch64_gnullvm | 0.53.1 | MIT OR Apache-2.0 |
 | windows_aarch64_msvc | 0.52.6 | MIT OR Apache-2.0 |
@@ -458,6 +486,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | xcursor | 0.3.11 | MIT |
 | xkbcommon-dl | 0.4.2 | MIT |
 | xkeysym | 0.2.1 | MIT OR Apache-2.0 OR Zlib |
+| xml | 1.4.0 | MIT |
 | xml-rs | 0.8.29 | MIT |
 | xmlwriter | 0.1.0 | MIT |
 | yoke | 0.8.4 | Unicode-3.0 |
@@ -477,8 +506,10 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | zerotrie | 0.2.5 | Unicode-3.0 |
 | zerovec | 0.11.9 | Unicode-3.0 |
 | zerovec-derive | 0.11.7 | Unicode-3.0 |
+| zip | 8.6.0 | MIT |
 | zlib-rs | 0.6.8 | Zlib |
 | zmij | 1.0.23 | MIT |
+| zopfli | 0.8.4 | Apache-2.0 |
 | zune-core | 0.5.3 | MIT OR Apache-2.0 OR Zlib |
 | zune-jpeg | 0.5.15 | MIT OR Apache-2.0 OR Zlib |
 | zvariant | 5.15.1 | MIT |
