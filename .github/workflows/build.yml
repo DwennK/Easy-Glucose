@@ -40,6 +40,7 @@ jobs:
           dotnet-version: '8.0.x'
       - run: dotnet tool install --global vpk --version 1.2.161
       - run: python scripts/package.py --target ${{ matrix.target }} --updates
+      - run: python scripts/test_update.py
       - uses: actions/upload-artifact@v4
         with:
           name: Easy-Glucose-${{ matrix.target }}

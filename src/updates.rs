@@ -12,6 +12,7 @@ enum Status {
     Current,
     Available(Box<UpdateInfo>),
     Installing,
+    InstallFailed,
     Restart,
     Failed,
 }
@@ -41,7 +42,10 @@ impl Updates {
     }
 
     pub fn has_update(&self) -> bool {
-        matches!(self.status, Status::Available(_) | Status::Installing)
+        matches!(
+            self.status,
+            Status::Available(_) | Status::Installing | Status::InstallFailed
+        )
     }
 
     pub fn auto_check_due(&self, now: i64, previous: i64) -> bool {
@@ -89,6 +93,9 @@ impl Updates {
             return false;
         };
         self.status = match rx.try_recv() {
+            Ok(Status::Failed) if matches!(self.status, Status::Installing) => {
+                Status::InstallFailed
+            }
             Ok(status) => status,
             Err(TryRecvError::Empty) => return false,
             Err(TryRecvError::Disconnected) => Status::Failed,
@@ -122,6 +129,12 @@ impl Updates {
                         )?;
                         Ok(Status::Restart)
                     });
+                }
+            }
+            Status::InstallFailed => {
+                ui.label(Text::UpdateFailed.get());
+                if ui.button(Text::CheckUpdate.get()).clicked() {
+                    self.check(ui.ctx());
                 }
             }
             Status::Idle | Status::Restart => {}
