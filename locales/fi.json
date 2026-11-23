@@ -191,5 +191,12 @@
   "AlreadyOpen": "Easy Glucose on jo auki. Käytä valikkorivin tai ilmaisinalueen kuvaketta.",
   "Hour": "h",
   "Minute": "min",
-  "WidgetPosition": "Siirrä pienoisikkunaa"
+  "WidgetPosition": "Siirrä pienoisikkunaa",
+  "CheckUpdate": "Tarkista päivitykset",
+  "CheckingUpdate": "Tarkistetaan päivityksiä…",
+  "AppCurrent": "Käytössäsi on uusin versio.",
+  "UpdateAvailable": "Uusi versio",
+  "InstallUpdate": "Asenna ja käynnistä uudelleen",
+  "InstallingUpdate": "Valmistellaan päivitystä…",
+  "UpdateFailed": "Päivitys epäonnistui. Tarkista yhteys ja yritä uudelleen."
 }

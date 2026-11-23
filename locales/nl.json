@@ -191,5 +191,12 @@
   "AlreadyOpen": "Easy Glucose is al geopend. Gebruik het pictogram in de menubalk of het systeemvak.",
   "Hour": "u",
   "Minute": "min",
-  "WidgetPosition": "Zwevend venster verplaatsen"
+  "WidgetPosition": "Zwevend venster verplaatsen",
+  "CheckUpdate": "Zoeken naar updates",
+  "CheckingUpdate": "Zoeken naar updates…",
+  "AppCurrent": "Je hebt de nieuwste versie.",
+  "UpdateAvailable": "Nieuwe versie",
+  "InstallUpdate": "Installeren en opnieuw starten",
+  "InstallingUpdate": "Update voorbereiden…",
+  "UpdateFailed": "De update is mislukt. Controleer de verbinding en probeer het opnieuw."
 }

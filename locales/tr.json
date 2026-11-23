@@ -191,5 +191,12 @@
   "AlreadyOpen": "Easy Glucose zaten açık. Menü çubuğundaki veya bildirim alanındaki simgeyi kullanın.",
   "Hour": "sa",
   "Minute": "dk",
-  "WidgetPosition": "Küçük pencereyi taşı"
+  "WidgetPosition": "Küçük pencereyi taşı",
+  "CheckUpdate": "Güncellemeleri denetle",
+  "CheckingUpdate": "Güncellemeler denetleniyor…",
+  "AppCurrent": "En son sürümü kullanıyorsunuz.",
+  "UpdateAvailable": "Yeni sürüm",
+  "InstallUpdate": "Yükle ve yeniden başlat",
+  "InstallingUpdate": "Güncelleme hazırlanıyor…",
+  "UpdateFailed": "Güncelleme başarısız oldu. Bağlantınızı kontrol edip tekrar deneyin."
 }

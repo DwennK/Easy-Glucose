@@ -191,5 +191,12 @@
   "AlreadyOpen": "Easy Glucose is already open. Use its system tray icon.",
   "Hour": "h",
   "Minute": "min",
-  "WidgetPosition": "Move floating window"
+  "WidgetPosition": "Move floating window",
+  "CheckUpdate": "Check for updates",
+  "CheckingUpdate": "Checking for updates…",
+  "AppCurrent": "You have the latest version.",
+  "UpdateAvailable": "New version",
+  "InstallUpdate": "Install and restart",
+  "InstallingUpdate": "Preparing the update…",
+  "UpdateFailed": "Update failed. Check your connection and try again."
 }

@@ -35,11 +35,15 @@ jobs:
       - run: cargo test --locked --target ${{ matrix.target }}
       - run: cargo build --release --locked --target ${{ matrix.target }}
       - run: python scripts/licenses.py
-      - run: python scripts/package.py --target ${{ matrix.target }} --archive
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet tool install --global vpk --version 1.2.161
+      - run: python scripts/package.py --target ${{ matrix.target }} --updates
       - uses: actions/upload-artifact@v4
         with:
           name: Easy-Glucose-${{ matrix.target }}
-          path: dist/*.zip
+          path: dist/publish/*
           if-no-files-found: error
           retention-days: 14
   release:
@@ -58,4 +62,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" artifacts/*.zip --draft --title "Easy Glucose $RELEASE_TAG" --notes "Native builds. macOS is ad-hoc signed, not Developer ID signed or notarized. Windows is unsigned. Secondary viewing only; not a medical device."
+        run: gh release create "$RELEASE_TAG" artifacts/* --draft --title "Easy Glucose $RELEASE_TAG" --notes "Native builds. macOS is ad-hoc signed, not Developer ID signed or notarized. Windows is unsigned. Secondary viewing only; not a medical device."

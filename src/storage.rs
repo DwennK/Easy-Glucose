@@ -63,6 +63,7 @@ pub struct Config {
     pub high: u16,
     pub period_hours: u8,
     pub onboarding_done: bool,
+    pub last_update_check: i64,
 }
 impl Default for Config {
     fn default() -> Self {
@@ -85,6 +86,7 @@ impl Default for Config {
             high: 180,
             period_hours: 6,
             onboarding_done: false,
+            last_update_check: 0,
         }
     }
 }

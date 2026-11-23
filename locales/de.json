@@ -191,5 +191,12 @@
   "AlreadyOpen": "Easy Glucose ist bereits geöffnet. Verwenden Sie das Symbol in der Menüleiste oder im Infobereich.",
   "Hour": "h",
   "Minute": "min",
-  "WidgetPosition": "Minifenster verschieben"
+  "WidgetPosition": "Minifenster verschieben",
+  "CheckUpdate": "Nach Updates suchen",
+  "CheckingUpdate": "Updates werden gesucht…",
+  "AppCurrent": "Sie haben die aktuelle Version.",
+  "UpdateAvailable": "Neue Version",
+  "InstallUpdate": "Installieren und neu starten",
+  "InstallingUpdate": "Update wird vorbereitet…",
+  "UpdateFailed": "Update fehlgeschlagen. Prüfen Sie die Verbindung und versuchen Sie es erneut."
 }

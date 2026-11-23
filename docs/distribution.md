@@ -12,6 +12,10 @@ Les ressources originales de marque sont dans `assets/`. Le script d’icônes e
 
 Installer le bundle macOS dans Applications avant d’activer le lancement automatique. Sous Windows, extraire le dossier dans un emplacement stable (par exemple un dossier utilisateur Applications), puis créer un raccourci de l’exécutable. Cette version propose une distribution portable, pas encore un installateur MSI avec désinstallation gérée.
 
+## Mises à jour dans l’application
+
+GitHub Actions installe la CLI Velopack et exécute `python scripts/package.py --target CIBLE --updates`. Publier ensemble le manifeste `releases.CANAL.json`, son paquet complet `.nupkg` et les téléchargements de chaque cible. Les canaux `win-x64`, `osx-arm64` et `osx-x64` gardent chaque installation sur son architecture. Le ZIP macOS embarque le programme de mise à jour et conserve la signature ad hoc. Sous Windows, le programme d’installation et le ZIP portable prennent tous deux en charge les mises à jour.
+
 ## Numérotation des releases
 
 La première version publique est `1.0.0`. À partir de cette base, choisir le plus petit incrément qui décrit les changements depuis la dernière release publiée.

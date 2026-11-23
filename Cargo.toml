@@ -1,12 +1,13 @@
 [package]
 name = "easy-glucose"
-version = "1.0.2"
+version = "1.1.0"
 edition = "2024"
 rust-version = "1.90"
 description = "A quiet, native glucose companion"
 license = "MIT"
 
 [dependencies]
+velopack = "=1.2.161"
 eframe = { version = "=0.33.3", default-features = false, features = ["glow", "default_fonts", "accesskit"] }
 egui_plot = "=0.34.1"
 egui_extras = { version = "=0.33.3", default-features = false, features = ["svg"] }

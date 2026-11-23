@@ -500,6 +500,18 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
             format!("{} {}", Text::SecondaryUse.get(), Text::Protocols.get()),
         );
         ui::muted(ui, Text::Schedule.get());
+        if app.updates.managed() {
+            if ui
+                .add_enabled(
+                    !app.updates.busy(),
+                    egui::Button::new(Text::CheckUpdate.get()),
+                )
+                .clicked()
+            {
+                app.check_updates();
+            }
+            app.updates.controls(ui);
+        }
         ui::muted(
             ui,
             format!(

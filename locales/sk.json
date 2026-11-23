@@ -191,5 +191,12 @@
   "AlreadyOpen": "Easy Glucose je už otvorená. Použite ikonu na systémovej lište.",
   "Hour": "h",
   "Minute": "min",
-  "WidgetPosition": "Presunúť plávajúce okno"
+  "WidgetPosition": "Presunúť plávajúce okno",
+  "CheckUpdate": "Vyhľadať aktualizácie",
+  "CheckingUpdate": "Vyhľadávajú sa aktualizácie…",
+  "AppCurrent": "Používate najnovšiu verziu.",
+  "UpdateAvailable": "Nová verzia",
+  "InstallUpdate": "Nainštalovať a reštartovať",
+  "InstallingUpdate": "Príprava aktualizácie…",
+  "UpdateFailed": "Aktualizácia zlyhala. Skontrolujte pripojenie a skúste to znova."
 }

@@ -191,5 +191,12 @@
   "AlreadyOpen": "Easy Glucose este deja deschisă. Folosiți pictograma din bara de meniu sau din zona de notificare.",
   "Hour": "h",
   "Minute": "min",
-  "WidgetPosition": "Deplasați fereastra flotantă"
+  "WidgetPosition": "Deplasați fereastra flotantă",
+  "CheckUpdate": "Caută actualizări",
+  "CheckingUpdate": "Se caută actualizări…",
+  "AppCurrent": "Ai cea mai recentă versiune.",
+  "UpdateAvailable": "Versiune nouă",
+  "InstallUpdate": "Instalează și repornește",
+  "InstallingUpdate": "Se pregătește actualizarea…",
+  "UpdateFailed": "Actualizarea a eșuat. Verifică conexiunea și încearcă din nou."
 }

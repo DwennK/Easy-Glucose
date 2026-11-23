@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser()
 p.add_argument('--target', default='')
 p.add_argument('--archive', action='store_true')
+p.add_argument('--updates', action='store_true', help='Create Velopack distribution files')
 a = p.parse_args()
 metadata = json.loads(subprocess.check_output(
     ['cargo', 'metadata', '--locked', '--no-deps', '--format-version', '1'], cwd=ROOT
@@ -54,7 +55,33 @@ if licenses.exists():
     shutil.copytree(licenses, (bundle if windows else bundle/'Contents'/'Resources')/'licenses', dirs_exist_ok=True)
 if not windows:
     subprocess.run(['codesign','--force','--deep','--sign','-',str(bundle)],check=True)
-if a.archive:
+if a.updates:
+    channels = {
+        'x86_64-pc-windows-msvc': ('win-x64', 'Easy Glucose.exe'),
+        'aarch64-apple-darwin': ('osx-arm64', 'easy-glucose'),
+        'x86_64-apple-darwin': ('osx-x64', 'easy-glucose'),
+    }
+    channel, executable = channels[a.target]
+    output = dist / 'velopack' / channel
+    publish = dist / 'publish'
+    publish.mkdir(exist_ok=True)
+    command = ['vpk', 'pack', '--packId', 'EasyGlucose', '--packTitle', 'Easy Glucose',
+               '--packVersion', version, '--packDir', str(bundle), '--mainExe', executable,
+               '--channel', channel, '--runtime', channel, '--outputDir', str(output),
+               '--icon', str(ROOT / 'assets' / ('icon.ico' if windows else 'icon.icns'))]
+    if not windows:
+        command.extend(['--signAppIdentity=-', '--noInst'])
+    subprocess.run(command, check=True)
+    base = f'EasyGlucose-{channel}'
+    feed = output / f'releases.{channel}.json'
+    assets = json.loads(feed.read_bytes())['Assets']
+    package, = [item for item in assets if item['Version'] == version and item['Type'] == 'Full']
+    shutil.copy2(output / package['FileName'], publish)
+    shutil.copy2(feed, publish)
+    shutil.copy2(output / f'{base}-Portable.zip', publish / f'Easy-Glucose-{a.target}.zip')
+    if windows:
+        shutil.copy2(output / f'{base}-Setup.exe', publish / 'Easy-Glucose-Setup.exe')
+elif a.archive:
     target = a.target or ('macos-arm64' if os.uname().machine=='arm64' else 'native')
     archive = dist / f'Easy-Glucose-{target}.zip'
     if windows:

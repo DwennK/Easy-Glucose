@@ -32,6 +32,7 @@ pub struct App {
     pub confirm_clear: bool,
     pub reset_widget: bool,
     pub popover: ui::popover::Popover,
+    pub(crate) updates: crate::updates::Updates,
     service: Service,
     tray: Option<Tray>,
     generation: u64,
@@ -87,6 +88,7 @@ impl App {
             confirm_clear: false,
             reset_widget: false,
             popover: ui::popover::Popover::default(),
+            updates: crate::updates::Updates::new(),
             service,
             tray,
             generation: 0,
@@ -120,6 +122,12 @@ impl App {
     pub fn mark_config(&mut self) {
         self.dirty = Some(Instant::now());
         self.ctx.request_repaint_of(egui::ViewportId::ROOT);
+    }
+    pub(crate) fn check_updates(&mut self) {
+        if self.updates.check(&self.ctx) {
+            self.config.last_update_check = chrono::Utc::now().timestamp();
+            self.mark_config();
+        }
     }
     pub fn refresh(&mut self) {
         if self.last_refresh.elapsed() >= Duration::from_secs(30) {
@@ -354,6 +362,17 @@ impl eframe::App for App {
             );
         }
         self.events();
+        if self.updates.poll() {
+            self.quit = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+        let now = chrono::Utc::now().timestamp();
+        if self
+            .updates
+            .auto_check_due(now, self.config.last_update_check)
+        {
+            self.check_updates();
+        }
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Comma)) {
             self.page = Page::Settings;
         }
@@ -413,6 +432,10 @@ impl eframe::App for App {
                     .inner_margin(egui::Margin::symmetric(18, 14)),
             )
             .show(ctx, |ui| {
+                if self.page == Page::Dashboard && self.updates.has_update() {
+                    self.updates.controls(ui);
+                    ui.separator();
+                }
                 if let Some(message) = self.notice.clone() {
                     egui::Frame::new()
                         .fill(theme::ORANGE.gamma_multiply(0.1))

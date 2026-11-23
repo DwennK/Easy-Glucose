@@ -28,6 +28,9 @@ fn application_icon() -> egui::IconData {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    velopack::VelopackApp::build()
+        .set_auto_apply_on_startup(false)
+        .run();
     // Fixed filter: dependencies cannot accidentally log HTTP requests or authentication URLs.
     let started = std::time::Instant::now();
     tracing_subscriber::registry()

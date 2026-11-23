@@ -9,13 +9,16 @@
 
 ## Download
 
-Choose the ZIP for your computer from the [latest release](https://github.com/DwennK/Easy-Glucose/releases/latest).
+Choose the download for your computer from the [latest release](https://github.com/DwennK/Easy-Glucose/releases/latest).
 
 | Platform | Download | Open |
 | --- | --- | --- |
 | Mac with Apple silicon | [macOS ARM64](https://github.com/DwennK/Easy-Glucose/releases/latest/download/Easy-Glucose-aarch64-apple-darwin.zip) | Unzip and move **Easy Glucose.app** to Applications. |
 | Mac with an Intel processor | [macOS Intel](https://github.com/DwennK/Easy-Glucose/releases/latest/download/Easy-Glucose-x86_64-apple-darwin.zip) | Unzip and move **Easy Glucose.app** to Applications. |
-| Windows x64 | [Windows x64](https://github.com/DwennK/Easy-Glucose/releases/latest/download/Easy-Glucose-x86_64-pc-windows-msvc.zip) | Extract the folder and open **Easy Glucose.exe**. |
+| Windows x64 installer | [Easy Glucose Setup](https://github.com/DwennK/Easy-Glucose/releases/latest/download/Easy-Glucose-Setup.exe) | Run the installer. |
+| Windows x64 portable | [Windows x64](https://github.com/DwennK/Easy-Glucose/releases/latest/download/Easy-Glucose-x86_64-pc-windows-msvc.zip) | Extract the entire archive and run the app from the extracted folder. |
+
+Starting with 1.1.0, Easy Glucose checks GitHub Releases once a day. Choose **Install and restart** when a new version appears, or check manually in **Settings → Advanced options → About**. If you are using 1.0.x, quit it and install 1.1.0 manually once. Your settings and glucose history stay in your user profile.
 
 The macOS apps are ad hoc signed and have not been notarized by Apple. The Windows executable is unsigned.
 

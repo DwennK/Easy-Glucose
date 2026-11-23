@@ -191,5 +191,12 @@
   "AlreadyOpen": "Easy Glucose ya está abierta. Usa su icono en la barra de menús o el área de notificación.",
   "Hour": "h",
   "Minute": "min",
-  "WidgetPosition": "Mover ventana flotante"
+  "WidgetPosition": "Mover ventana flotante",
+  "CheckUpdate": "Buscar actualizaciones",
+  "CheckingUpdate": "Buscando actualizaciones…",
+  "AppCurrent": "Tienes la última versión.",
+  "UpdateAvailable": "Nueva versión",
+  "InstallUpdate": "Instalar y reiniciar",
+  "InstallingUpdate": "Preparando la actualización…",
+  "UpdateFailed": "Error de actualización. Comprueba la conexión e inténtalo de nuevo."
 }

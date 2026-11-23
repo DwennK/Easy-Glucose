@@ -7,3 +7,4 @@ pub mod services;
 pub mod sources;
 pub mod storage;
 pub mod ui;
+mod updates;

@@ -191,5 +191,12 @@
   "AlreadyOpen": "Az Easy Glucose már meg van nyitva. Használja a menüsor vagy az értesítési terület ikonját.",
   "Hour": "ó",
   "Minute": "perc",
-  "WidgetPosition": "Lebegő ablak mozgatása"
+  "WidgetPosition": "Lebegő ablak mozgatása",
+  "CheckUpdate": "Frissítések keresése",
+  "CheckingUpdate": "Frissítések keresése…",
+  "AppCurrent": "A legújabb verziót használja.",
+  "UpdateAvailable": "Új verzió",
+  "InstallUpdate": "Telepítés és újraindítás",
+  "InstallingUpdate": "Frissítés előkészítése…",
+  "UpdateFailed": "A frissítés sikertelen. Ellenőrizze a kapcsolatot, és próbálja újra."
 }

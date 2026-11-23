@@ -191,5 +191,12 @@
   "AlreadyOpen": "Easy Glucose er allerede åpen. Bruk ikonet i menylinjen eller systemstatusfeltet.",
   "Hour": "t",
   "Minute": "min",
-  "WidgetPosition": "Flytt minivinduet"
+  "WidgetPosition": "Flytt minivinduet",
+  "CheckUpdate": "Se etter oppdateringer",
+  "CheckingUpdate": "Ser etter oppdateringer…",
+  "AppCurrent": "Du har den nyeste versjonen.",
+  "UpdateAvailable": "Ny versjon",
+  "InstallUpdate": "Installer og start på nytt",
+  "InstallingUpdate": "Forbereder oppdateringen…",
+  "UpdateFailed": "Oppdateringen mislyktes. Sjekk tilkoblingen og prøv igjen."
 }
