@@ -279,6 +279,7 @@ pub fn header(app: &mut App, ui: &mut egui::Ui) {
         &[
             (0, Segment::Text(Text::Display.get())),
             (1, Segment::Text(Text::Sources.get())),
+            (3, Segment::Text(Text::Alerts.get())),
             (2, Segment::Text(Text::Advanced.get())),
         ],
     );
@@ -291,6 +292,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         1 => {
             ui::group(ui, Text::Sources.get(), |ui| account(app, ui));
         }
+        3 => alerts(app, ui),
         _ => advanced(app, ui),
     }
     if before != app.config {
@@ -639,5 +641,129 @@ fn language_picker(app: &mut App, ui: &mut egui::Ui) {
     if previous != app.config.language {
         app.apply_language();
         app.mark_config();
+    }
+}
+
+fn alerts(app: &mut App, ui: &mut egui::Ui) {
+    use crate::alerts::{Intensity, Kind};
+    let kind = &mut app.alert_kind;
+    let mut preview = None;
+    let mut import_error = None;
+    ui::group(ui, Text::Alerts.get(), |ui| {
+        egui::ComboBox::from_id_salt("alert_kind")
+            .selected_text(kind.title().get())
+            .width(230.)
+            .show_ui(ui, |ui| {
+                for option in Kind::ALL {
+                    ui.selectable_value(kind, option, option.title().get());
+                }
+            });
+        let settings = &mut app.config.alerts;
+        let rule = &mut settings.rules[*kind as usize];
+        ui::switch(ui, &mut rule.enabled, Text::EnableAlert.get(), "");
+        match kind {
+            Kind::UrgentLow => bound(
+                ui,
+                Text::AlertThreshold.get(),
+                &mut settings.urgent,
+                40,
+                100.min(settings.low - 1),
+                app.config.unit,
+            ),
+            Kind::Low => bound(
+                ui,
+                Text::AlertThreshold.get(),
+                &mut settings.low,
+                settings.urgent + 1,
+                200.min(settings.high - 1),
+                app.config.unit,
+            ),
+            Kind::High => bound(
+                ui,
+                Text::AlertThreshold.get(),
+                &mut settings.high,
+                settings.low + 1,
+                400,
+                app.config.unit,
+            ),
+            Kind::SignalLoss => row(ui, Text::Delay.get(), |ui| {
+                ui.add(
+                    egui::DragValue::new(&mut settings.minutes)
+                        .range(5..=120)
+                        .suffix(format!(" {}", Text::Minute.get())),
+                );
+            }),
+            _ => {}
+        }
+        ui.separator();
+        let imported = rule.imported.as_ref().map(|f| f.label());
+        let tone_label = if rule.use_import {
+            imported
+                .clone()
+                .unwrap_or_else(|| rule.tone.title().get().into())
+        } else {
+            rule.tone.title().get().into()
+        };
+        row(ui, Text::Sound.get(), |ui| {
+            egui::ComboBox::from_id_salt("alert_tone")
+                .selected_text(tone_label)
+                .width(230.)
+                .truncate()
+                .show_ui(ui, |ui| {
+                    for tone in Kind::ALL {
+                        if ui
+                            .selectable_label(
+                                !rule.use_import && rule.tone == tone,
+                                tone.title().get(),
+                            )
+                            .clicked()
+                        {
+                            rule.tone = tone;
+                            rule.use_import = false;
+                        }
+                    }
+                    if let Some(label) = &imported
+                        && ui.selectable_label(rule.use_import, label).clicked()
+                    {
+                        rule.use_import = true;
+                    }
+                });
+        });
+        row(ui, Text::Intensity.get(), |ui| {
+            egui::ComboBox::from_id_salt("alert_intensity")
+                .selected_text(rule.intensity.title().get())
+                .width(230.)
+                .show_ui(ui, |ui| {
+                    for level in [Intensity::Soft, Intensity::Medium, Intensity::Intense] {
+                        ui.selectable_value(&mut rule.intensity, level, level.title().get());
+                    }
+                });
+        });
+        ui.horizontal_wrapped(|ui| {
+            if ui.button(Text::Listen.get()).clicked() {
+                preview = Some(rule.clone());
+            }
+            if ui.button(Text::ImportWav.get()).clicked()
+                && let Some(path) = rfd::FileDialog::new()
+                    .add_filter("WAV", &["wav"])
+                    .pick_file()
+            {
+                match crate::alert_audio::import(&path, &app.data_dir) {
+                    Ok(file) => {
+                        rule.imported = Some(file);
+                        rule.use_import = true;
+                    }
+                    Err(e) => import_error = Some(e),
+                }
+            }
+        });
+    });
+    ui.add_space(8.);
+    ui::muted(ui, Text::SecondaryUse.get());
+    if let Some(rule) = preview {
+        app.send(Command::Preview(rule));
+    }
+    if let Some(error) = import_error {
+        app.report(error);
     }
 }

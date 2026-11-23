@@ -24,6 +24,9 @@ pub struct App {
     pub page: Page,
     pub account_open: bool,
     pub settings_tab: usize,
+    pub(crate) alert_kind: crate::alerts::Kind,
+    pub(crate) data_dir: std::path::PathBuf,
+    active_alerts: Option<(u64, Vec<crate::alerts::Kind>)>,
     pub username: String,
     pub password: String,
     pub source_url: String,
@@ -76,6 +79,7 @@ impl App {
         crate::i18n::activate(config.language.as_deref());
         theme::install(&ctx);
         theme::apply(&ctx, config.theme);
+        let data_dir = store.directory.clone();
         let service = Service::start(store, config.clone(), ctx.clone())?;
         let (tray, notice) = match Tray::new(ctx.clone()) {
             Ok(tray) => (Some(tray), notice),
@@ -99,6 +103,9 @@ impl App {
             page,
             account_open: false,
             settings_tab: 0,
+            alert_kind: crate::alerts::Kind::UrgentLow,
+            data_dir,
+            active_alerts: None,
             username: String::new(),
             password: String::new(),
             source_url: String::new(),
@@ -141,6 +148,9 @@ impl App {
         if self.service.commands.send(command).is_err() {
             self.notice = Some(Text::ServiceStopped.english().into());
         }
+    }
+    pub(crate) fn report(&mut self, message: Text) {
+        self.notice = Some(message.english().into());
     }
     pub fn mark_config(&mut self) {
         self.dirty = Some(Instant::now());
@@ -273,6 +283,9 @@ impl App {
     fn events(&mut self) {
         while let Ok(event) = self.service.events.try_recv() {
             match event {
+                Event::Alert(generation, kinds) if generation == self.generation => {
+                    self.active_alerts = Some((generation, kinds))
+                }
                 Event::Notice(e) => self.notice = Some(e),
                 Event::Autostart(value) => self.config.autostart = value,
                 Event::Data(s) if s.generation == self.generation => {
@@ -481,6 +494,21 @@ impl eframe::App for App {
                 if self.page == Page::Dashboard && self.updates.has_update() {
                     self.updates.controls(ui);
                     ui.separator();
+                }
+                if let Some((generation, kinds)) = &self.active_alerts
+                    && *generation == self.generation
+                {
+                    let labels = kinds
+                        .iter()
+                        .map(|kind| kind.title().get())
+                        .collect::<Vec<_>>()
+                        .join(" · ");
+                    ui.horizontal_wrapped(|ui| {
+                        ui.strong(labels);
+                        if ui.small_button(Text::Close.get()).clicked() {
+                            self.active_alerts = None;
+                        }
+                    });
                 }
                 if let Some(message) = self.notice.clone() {
                     egui::Frame::new()

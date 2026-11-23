@@ -94,11 +94,13 @@ pub enum Command {
     Retry,
     Refresh,
     Save(Config),
+    Preview(crate::alerts::Rule),
     Clear,
     Shutdown,
 }
 pub enum Event {
     Data(Snapshot),
+    Alert(u64, Vec<crate::alerts::Kind>),
     Notice(String),
     Autostart(bool),
 }
@@ -196,14 +198,73 @@ async fn run(
     let mut provider = config.provider;
     let mut rate_limits = std::collections::HashMap::<Provider, RateLimit>::new();
     let mut persist_login = false;
+    let mut monitor = crate::alerts::Monitor::default();
+    let audio_sequence = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let play = |kinds: Vec<crate::alerts::Kind>, rules: Vec<crate::alerts::Rule>| {
+        let ticket = audio_sequence.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+        crate::alert_audio::dispatch(
+            kinds,
+            rules,
+            store.directory.clone(),
+            events.clone(),
+            ctx.clone(),
+            audio_sequence.clone(),
+            ticket,
+        );
+    };
 
     loop {
-        let command = tokio::select! {c=commands.recv()=>c,_=tokio::time::sleep_until(due)=>Some(Command::Refresh)};
+        use crate::alerts::Kind;
+        let watch_gap = client.is_some()
+            && !demo
+            && (!snapshot.state.needs_account() || snapshot.last_sync.is_some())
+            && config.alerts.rules[Kind::SignalLoss as usize].enabled;
+        if watch_gap && monitor.missing(Utc::now(), &config.alerts) {
+            let alerts = vec![Kind::SignalLoss];
+            emit(
+                &events,
+                &ctx,
+                Event::Alert(snapshot.generation, alerts.clone()),
+            );
+            play(
+                alerts,
+                vec![config.alerts.rules[Kind::SignalLoss as usize].clone()],
+            );
+        }
+        let gap_due = monitor
+            .missing_deadline(&config.alerts)
+            .filter(|_| watch_gap);
+        let wake = gap_due
+            .map(|time| Instant::now() + (time - Utc::now()).to_std().unwrap_or_default())
+            .unwrap_or(due);
+        let command = tokio::select! {
+            c=commands.recv()=>c,
+            _=tokio::time::sleep_until(due)=>Some(Command::Refresh),
+            _=tokio::time::sleep_until(wake), if gap_due.is_some() => continue
+        };
         let Some(command) = command else {
             break;
         };
+        if matches!(
+            command,
+            Command::Demo(_)
+                | Command::Disconnect(..)
+                | Command::Restore(..)
+                | Command::Connect(..)
+                | Command::SelectPatient(..)
+        ) {
+            monitor = crate::alerts::Monitor::default();
+            audio_sequence.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
         match command {
-            Command::Shutdown => break,
+            Command::Shutdown => {
+                audio_sequence.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                break;
+            }
+            Command::Preview(rule) => {
+                play(Vec::new(), vec![rule]);
+                continue;
+            }
             Command::Save(mut c) => {
                 c.normalize();
                 if c.autostart != config.autostart
@@ -214,6 +275,23 @@ async fn run(
                     emit(&events, &ctx, Event::Autostart(c.autostart));
                 }
                 let retention_changed = config.history_days != c.history_days;
+                #[cfg(target_os = "macos")]
+                if !config.alerts.rules.iter().any(|r| r.enabled)
+                    && c.alerts.rules.iter().any(|r| r.enabled)
+                {
+                    let sender = events.clone();
+                    let context = ctx.clone();
+                    std::thread::spawn(move || {
+                        if !matches!(notify_rust::request_auth_blocking(), Ok(true)) {
+                            emit(
+                                &sender,
+                                &context,
+                                Event::Notice(Text::NotificationError.english().into()),
+                            );
+                        }
+                    });
+                }
+                monitor.settings_changed(&c.alerts);
                 config = c;
                 if let Err(e) = store.save_config(&config) {
                     emit(&events, &ctx, Event::Notice(e));
@@ -408,6 +486,7 @@ async fn run(
         if *cancelled.borrow() {
             continue;
         }
+        monitor.start(Utc::now());
         let result = tokio::select! {
             result = c.fetch() => result,
             _ = cancelled.changed() => continue,
@@ -419,7 +498,21 @@ async fn run(
             Ok(readings) => {
                 rate.failures = 0;
                 snapshot.error = None;
-                snapshot.last_sync = Some(Utc::now());
+                let now = Utc::now();
+                snapshot.last_sync = Some(now);
+                let kinds = monitor.reading(&readings, now, &config.alerts);
+                if !kinds.is_empty() {
+                    emit(
+                        &events,
+                        &ctx,
+                        Event::Alert(snapshot.generation, kinds.clone()),
+                    );
+                    let rules = kinds
+                        .iter()
+                        .map(|&kind| config.alerts.rules[kind as usize].clone())
+                        .collect();
+                    play(kinds, rules);
+                }
                 merge_readings(
                     &mut snapshot.readings,
                     readings,

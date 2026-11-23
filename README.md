@@ -36,6 +36,8 @@ cargo run --release --locked -- --demo
 
 To view your own readings, open **Settings → Data sources**, choose your provider and sign in. A green checkmark confirms a successful connection. Easy Glucose shows how old each reading is. Use it as a secondary display and rely on your sensor’s official app for alarms and treatment decisions.
 
+In **Settings → Alerts**, enable the events you want on this computer and choose a sound and playback intensity for each. You can preview a built-in tone or import a WAV. Supported G7 sounds are labeled in the app’s selected language. Desktop alerts use readings received while Easy Glucose is running. The demo supports sound previews.
+
 ## Three views
 
 | macOS menu bar preview | Floating widget |

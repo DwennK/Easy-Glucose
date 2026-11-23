@@ -25,6 +25,10 @@ thiserror = "2"
 fs2 = "0.4"
 sha2 = "0.10"
 sha1 = "0.10"
+hound = "3.5"
+rodio = { version = "0.20", default-features = false, features = ["wav"] }
+rfd = "0.15"
+notify-rust = { version = "4.19", features = ["preview-macos-un"] }
 sys-locale = "0.3"
 
 [target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]

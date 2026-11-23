@@ -16,6 +16,8 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | adler2 | 2.0.1 | 0BSD OR MIT OR Apache-2.0 |
 | ahash | 0.8.12 | MIT OR Apache-2.0 |
 | aho-corasick | 1.1.5 | Unlicense OR MIT |
+| alsa | 0.9.1 | Apache-2.0/MIT |
+| alsa-sys | 0.3.1 | MIT |
 | android-activity | 0.6.1 | MIT OR Apache-2.0 |
 | android-properties | 0.2.2 | MIT |
 | android_system_properties | 0.1.6 | MIT OR Apache-2.0 |
@@ -24,11 +26,14 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | arrayref | 0.3.9 | BSD-2-Clause |
 | arrayvec | 0.7.8 | MIT OR Apache-2.0 |
 | as-raw-xcb-connection | 1.0.1 | MIT OR Apache-2.0 |
+| ashpd | 0.11.1 | MIT |
 | async-broadcast | 0.7.2 | MIT OR Apache-2.0 |
 | async-channel | 2.5.0 | Apache-2.0 OR MIT |
 | async-executor | 1.14.1 | Apache-2.0 OR MIT |
+| async-fs | 2.2.0 | Apache-2.0 OR MIT |
 | async-io | 2.6.0 | Apache-2.0 OR MIT |
 | async-lock | 3.5.0 | Apache-2.0 OR MIT |
+| async-net | 2.0.0 | Apache-2.0 OR MIT |
 | async-process | 2.5.0 | Apache-2.0 OR MIT |
 | async-recursion | 1.2.0 | MIT OR Apache-2.0 |
 | async-signal | 0.2.14 | Apache-2.0 OR MIT |
@@ -43,6 +48,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | autocfg | 1.5.1 | Apache-2.0 OR MIT |
 | base64 | 0.22.1 | MIT OR Apache-2.0 |
 | base64 | 0.23.1 | MIT OR Apache-2.0 |
+| bindgen | 0.72.1 | BSD-3-Clause |
 | bitflags | 1.3.2 | MIT/Apache-2.0 |
 | bitflags | 2.13.2 | MIT OR Apache-2.0 |
 | block-buffer | 0.10.4 | MIT OR Apache-2.0 |
@@ -61,11 +67,14 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | calloop-wayland-source | 0.3.0 | MIT |
 | calloop-wayland-source | 0.4.1 | MIT |
 | cc | 1.11.2 | MIT OR Apache-2.0 |
+| cesu8 | 1.1.0 | Apache-2.0/MIT |
+| cexpr | 0.6.0 | Apache-2.0/MIT |
 | cfg-if | 1.0.5 | MIT OR Apache-2.0 |
 | cfg_aliases | 0.2.2 | MIT |
 | cgl | 0.3.2 | MIT / Apache-2.0 |
 | chacha20 | 0.10.2 | MIT OR Apache-2.0 |
 | chrono | 0.4.45 | MIT OR Apache-2.0 |
+| clang-sys | 1.9.1 | Apache-2.0 |
 | clipboard-win | 5.4.3 | BSL-1.0 |
 | combine | 4.6.9 | MIT |
 | concurrent-queue | 2.5.0 | Apache-2.0 OR MIT |
@@ -75,6 +84,9 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | core-foundation-sys | 0.8.7 | MIT OR Apache-2.0 |
 | core-graphics | 0.23.2 | MIT OR Apache-2.0 |
 | core-graphics-types | 0.1.3 | MIT OR Apache-2.0 |
+| coreaudio-rs | 0.11.3 | MIT/Apache-2.0 |
+| coreaudio-sys | 0.2.18 | MIT |
+| cpal | 0.15.3 | Apache-2.0 |
 | cpufeatures | 0.2.17 | MIT OR Apache-2.0 |
 | cpufeatures | 0.3.1 | MIT OR Apache-2.0 |
 | crc32fast | 1.5.5 | MIT OR Apache-2.0 |
@@ -84,7 +96,9 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | crypto-common | 0.1.7 | MIT OR Apache-2.0 |
 | crypto-common | 0.2.2 | MIT OR Apache-2.0 |
 | cursor-icon | 1.2.0 | MIT OR Apache-2.0 OR Zlib |
+| dasp_sample | 0.11.0 | MIT OR Apache-2.0 |
 | data-url | 0.3.2 | MIT OR Apache-2.0 |
+| deranged | 0.5.9 | MIT OR Apache-2.0 |
 | derivative | 2.2.0 | MIT/Apache-2.0 |
 | digest | 0.10.7 | MIT OR Apache-2.0 |
 | digest | 0.11.3 | MIT OR Apache-2.0 |
@@ -105,6 +119,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | egui_extras | 0.33.3 | MIT OR Apache-2.0 |
 | egui_glow | 0.33.3 | MIT OR Apache-2.0 |
 | egui_plot | 0.34.1 | MIT OR Apache-2.0 |
+| either | 1.19.0 | MIT OR Apache-2.0 |
 | emath | 0.33.3 | MIT OR Apache-2.0 |
 | endi | 1.1.1 | MIT |
 | enum-map | 2.7.3 | MIT OR Apache-2.0 |
@@ -137,6 +152,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | futures-lite | 2.6.1 | Apache-2.0 OR MIT |
 | futures-macro | 0.3.34 | MIT OR Apache-2.0 |
 | futures-task | 0.3.34 | MIT OR Apache-2.0 |
+| futures-timer | 3.0.4 | MIT/Apache-2.0 |
 | futures-util | 0.3.34 | MIT OR Apache-2.0 |
 | generic-array | 0.14.7 | MIT |
 | gethostname | 1.1.0 | Apache-2.0 |
@@ -155,6 +171,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | hashbrown | 0.17.1 | MIT OR Apache-2.0 |
 | hermit-abi | 0.5.3 | MIT OR Apache-2.0 |
 | hex | 0.4.3 | MIT OR Apache-2.0 |
+| hound | 3.5.1 | Apache-2.0 |
 | http | 1.5.0 | MIT OR Apache-2.0 |
 | http-body | 1.1.0 | MIT |
 | http-body-util | 0.1.5 | MIT |
@@ -178,7 +195,9 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | imagesize | 0.13.0 | MIT |
 | indexmap | 2.14.2 | Apache-2.0 OR MIT |
 | ipnet | 2.12.2 | MIT OR Apache-2.0 |
+| itertools | 0.13.0 | MIT OR Apache-2.0 |
 | itoa | 1.0.19 | MIT OR Apache-2.0 |
+| jni | 0.21.1 | MIT/Apache-2.0 |
 | jni | 0.22.4 | MIT OR Apache-2.0 |
 | jni-macros | 0.22.4 | MIT OR Apache-2.0 |
 | jni-sys | 0.3.1 | MIT OR Apache-2.0 |
@@ -201,20 +220,30 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | lock_api | 0.4.14 | MIT OR Apache-2.0 |
 | log | 0.4.35 | MIT OR Apache-2.0 |
 | lru-slab | 0.1.3 | MIT OR Apache-2.0 OR Zlib |
+| mac-notification-sys | 0.6.15 | MIT/Apache-2.0 |
+| mac-usernotifications | 0.3.1 | MIT OR Apache-2.0 |
+| mach2 | 0.4.3 | BSD-2-Clause OR MIT OR Apache-2.0 |
 | memchr | 2.8.3 | Unlicense OR MIT |
 | memmap2 | 0.9.12 | MIT OR Apache-2.0 |
 | memoffset | 0.9.1 | MIT |
+| minimal-lexical | 0.2.1 | MIT/Apache-2.0 |
 | miniz_oxide | 0.8.9 | MIT OR Zlib OR Apache-2.0 |
 | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 |
 | mio | 1.2.5 | MIT |
 | moxcms | 0.8.1 | BSD-3-Clause OR Apache-2.0 |
 | muda | 0.21.2 | Apache-2.0 OR MIT |
+| ndk | 0.8.0 | MIT OR Apache-2.0 |
 | ndk | 0.9.0 | MIT OR Apache-2.0 |
 | ndk-context | 0.1.1 | MIT OR Apache-2.0 |
+| ndk-sys | 0.5.0+25.2.9519653 | MIT OR Apache-2.0 |
 | ndk-sys | 0.6.0+11769913 | MIT OR Apache-2.0 |
 | nix | 0.31.4 | MIT |
 | nohash-hasher | 0.2.0 | Apache-2.0 OR MIT |
+| nom | 7.1.3 | MIT |
 | normpath | 1.5.2 | MIT OR Apache-2.0 |
+| notify-rust | 4.19.0 | MIT OR Apache-2.0 |
+| num-conv | 0.2.2 | MIT OR Apache-2.0 |
+| num-derive | 0.4.2 | MIT OR Apache-2.0 |
 | num-traits | 0.2.19 | MIT OR Apache-2.0 |
 | num_enum | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 |
 | num_enum_derive | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 |
@@ -251,6 +280,8 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | objc2-uniform-type-identifiers | 0.2.2 | MIT |
 | objc2-user-notifications | 0.2.2 | MIT |
 | objc2-user-notifications | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| oboe | 0.6.1 | Apache-2.0 |
+| oboe-sys | 0.6.1 | Apache-2.0 |
 | once_cell | 1.21.4 | MIT OR Apache-2.0 |
 | option-ext | 0.2.0 | MPL-2.0 |
 | orbclient | 0.3.55 | MIT |
@@ -271,7 +302,10 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | png | 0.17.16 | MIT OR Apache-2.0 |
 | png | 0.18.1 | MIT OR Apache-2.0 |
 | polling | 3.11.0 | Apache-2.0 OR MIT |
+| pollster | 0.4.0 | Apache-2.0/MIT |
 | potential_utf | 0.1.6 | Unicode-3.0 |
+| powerfmt | 0.2.1 | MIT OR Apache-2.0 |
+| ppv-lite86 | 0.2.21 | MIT OR Apache-2.0 |
 | proc-macro-crate | 3.5.0 | MIT OR Apache-2.0 |
 | proc-macro2 | 1.0.107 | MIT OR Apache-2.0 |
 | profiling | 1.0.18 | MIT OR Apache-2.0 |
@@ -285,7 +319,10 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | r-efi | 5.3.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later |
 | r-efi | 6.0.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later |
 | rand | 0.10.4 | MIT OR Apache-2.0 |
+| rand | 0.9.5 | MIT OR Apache-2.0 |
+| rand_chacha | 0.9.0 | MIT OR Apache-2.0 |
 | rand_core | 0.10.1 | MIT OR Apache-2.0 |
+| rand_core | 0.9.5 | MIT OR Apache-2.0 |
 | rand_pcg | 0.10.2 | MIT OR Apache-2.0 |
 | raw-window-handle | 0.6.2 | MIT OR Apache-2.0 OR Zlib |
 | redox_syscall | 0.4.1 | MIT |
@@ -297,8 +334,10 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | regex-syntax | 0.8.12 | MIT OR Apache-2.0 |
 | reqwest | 0.12.28 | MIT OR Apache-2.0 |
 | resvg | 0.45.1 | Apache-2.0 OR MIT |
+| rfd | 0.15.4 | MIT |
 | rgb | 0.8.53 | MIT |
 | ring | 0.17.14 | Apache-2.0 AND ISC |
+| rodio | 0.20.1 | MIT OR Apache-2.0 |
 | roxmltree | 0.20.0 | MIT OR Apache-2.0 |
 | rustc-hash | 2.1.3 | Apache-2.0 OR MIT |
 | rustc_version | 0.4.1 | MIT OR Apache-2.0 |
@@ -328,6 +367,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | sha2 | 0.10.9 | MIT OR Apache-2.0 |
 | sha2 | 0.11.1 | MIT OR Apache-2.0 |
 | sharded-slab | 0.1.7 | MIT |
+| shlex | 1.3.0 | MIT OR Apache-2.0 |
 | shlex | 2.0.1 | MIT OR Apache-2.0 |
 | signal-hook-registry | 1.4.8 | MIT OR Apache-2.0 |
 | simd-adler32 | 0.3.10 | MIT |
@@ -355,6 +395,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | sync_wrapper | 1.0.2 | Apache-2.0 |
 | synstructure | 0.14.0 | MIT |
 | sys-locale | 0.3.2 | MIT OR Apache-2.0 |
+| tauri-winrt-notification | 0.8.1 | MIT OR Apache-2.0 |
 | tempfile | 3.27.0 | MIT OR Apache-2.0 |
 | thiserror | 1.0.69 | MIT OR Apache-2.0 |
 | thiserror | 2.0.21 | MIT OR Apache-2.0 |
@@ -362,6 +403,8 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | thiserror-impl | 2.0.21 | MIT OR Apache-2.0 |
 | thread_local | 1.1.10 | MIT OR Apache-2.0 |
 | tiff | 0.11.3 | MIT |
+| time | 0.3.55 | MIT OR Apache-2.0 |
+| time-core | 0.1.9 | MIT OR Apache-2.0 |
 | tiny-skia | 0.11.4 | BSD-3-Clause |
 | tiny-skia-path | 0.11.4 | BSD-3-Clause |
 | tinystr | 0.8.5 | Unicode-3.0 |
@@ -394,6 +437,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | ureq | 3.5.2 | MIT OR Apache-2.0 |
 | ureq-proto | 0.7.1 | MIT OR Apache-2.0 |
 | url | 2.5.8 | MIT OR Apache-2.0 |
+| urlencoding | 2.1.3 | MIT |
 | usvg | 0.45.1 | Apache-2.0 OR MIT |
 | utf8-zero | 0.8.1 | MIT OR Apache-2.0 |
 | utf8_iter | 1.1.0 | Apache-2.0 OR MIT |
@@ -432,10 +476,12 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | winapi-i686-pc-windows-gnu | 0.4.0 | MIT/Apache-2.0 |
 | winapi-util | 0.1.11 | Unlicense OR MIT |
 | winapi-x86_64-pc-windows-gnu | 0.4.0 | MIT/Apache-2.0 |
+| windows | 0.54.0 | MIT OR Apache-2.0 |
 | windows | 0.61.3 | MIT OR Apache-2.0 |
 | windows | 0.62.2 | MIT OR Apache-2.0 |
 | windows-collections | 0.2.0 | MIT OR Apache-2.0 |
 | windows-collections | 0.3.2 | MIT OR Apache-2.0 |
+| windows-core | 0.54.0 | MIT OR Apache-2.0 |
 | windows-core | 0.61.2 | MIT OR Apache-2.0 |
 | windows-core | 0.62.2 | MIT OR Apache-2.0 |
 | windows-future | 0.2.1 | MIT OR Apache-2.0 |
@@ -447,32 +493,43 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | windows-numerics | 0.2.0 | MIT OR Apache-2.0 |
 | windows-numerics | 0.3.1 | MIT OR Apache-2.0 |
 | windows-registry | 0.6.1 | MIT OR Apache-2.0 |
+| windows-result | 0.1.2 | MIT OR Apache-2.0 |
 | windows-result | 0.3.4 | MIT OR Apache-2.0 |
 | windows-result | 0.4.1 | MIT OR Apache-2.0 |
 | windows-strings | 0.4.2 | MIT OR Apache-2.0 |
 | windows-strings | 0.5.1 | MIT OR Apache-2.0 |
+| windows-sys | 0.45.0 | MIT OR Apache-2.0 |
 | windows-sys | 0.52.0 | MIT OR Apache-2.0 |
 | windows-sys | 0.59.0 | MIT OR Apache-2.0 |
 | windows-sys | 0.60.2 | MIT OR Apache-2.0 |
 | windows-sys | 0.61.2 | MIT OR Apache-2.0 |
+| windows-targets | 0.42.2 | MIT OR Apache-2.0 |
 | windows-targets | 0.52.6 | MIT OR Apache-2.0 |
 | windows-targets | 0.53.5 | MIT OR Apache-2.0 |
 | windows-threading | 0.1.0 | MIT OR Apache-2.0 |
 | windows-threading | 0.2.1 | MIT OR Apache-2.0 |
+| windows-version | 0.1.7 | MIT OR Apache-2.0 |
+| windows_aarch64_gnullvm | 0.42.2 | MIT OR Apache-2.0 |
 | windows_aarch64_gnullvm | 0.52.6 | MIT OR Apache-2.0 |
 | windows_aarch64_gnullvm | 0.53.1 | MIT OR Apache-2.0 |
+| windows_aarch64_msvc | 0.42.2 | MIT OR Apache-2.0 |
 | windows_aarch64_msvc | 0.52.6 | MIT OR Apache-2.0 |
 | windows_aarch64_msvc | 0.53.1 | MIT OR Apache-2.0 |
+| windows_i686_gnu | 0.42.2 | MIT OR Apache-2.0 |
 | windows_i686_gnu | 0.52.6 | MIT OR Apache-2.0 |
 | windows_i686_gnu | 0.53.1 | MIT OR Apache-2.0 |
 | windows_i686_gnullvm | 0.52.6 | MIT OR Apache-2.0 |
 | windows_i686_gnullvm | 0.53.1 | MIT OR Apache-2.0 |
+| windows_i686_msvc | 0.42.2 | MIT OR Apache-2.0 |
 | windows_i686_msvc | 0.52.6 | MIT OR Apache-2.0 |
 | windows_i686_msvc | 0.53.1 | MIT OR Apache-2.0 |
+| windows_x86_64_gnu | 0.42.2 | MIT OR Apache-2.0 |
 | windows_x86_64_gnu | 0.52.6 | MIT OR Apache-2.0 |
 | windows_x86_64_gnu | 0.53.1 | MIT OR Apache-2.0 |
+| windows_x86_64_gnullvm | 0.42.2 | MIT OR Apache-2.0 |
 | windows_x86_64_gnullvm | 0.52.6 | MIT OR Apache-2.0 |
 | windows_x86_64_gnullvm | 0.53.1 | MIT OR Apache-2.0 |
+| windows_x86_64_msvc | 0.42.2 | MIT OR Apache-2.0 |
 | windows_x86_64_msvc | 0.52.6 | MIT OR Apache-2.0 |
 | windows_x86_64_msvc | 0.53.1 | MIT OR Apache-2.0 |
 | winit | 0.30.13 | Apache-2.0 |
@@ -492,10 +549,13 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | yoke | 0.8.4 | Unicode-3.0 |
 | yoke-derive | 0.8.4 | Unicode-3.0 |
 | zbus | 5.19.0 | MIT |
+| zbus | 6.3.0 | MIT |
 | zbus-lockstep | 0.5.2 | MIT |
 | zbus-lockstep-macros | 0.5.2 | MIT |
 | zbus_macros | 5.19.0 | MIT |
+| zbus_macros | 6.5.0 | MIT |
 | zbus_names | 4.3.5 | MIT |
+| zbus_utils | 6.1.0 | MIT |
 | zbus_xml | 5.2.1 | MIT |
 | zcheapstr | 1.2.0 | MIT |
 | zerocopy | 0.8.63 | BSD-2-Clause OR Apache-2.0 OR MIT |
@@ -510,6 +570,7 @@ Resolved packages in Cargo.lock (including build and platform-specific dependenc
 | zlib-rs | 0.6.8 | Zlib |
 | zmij | 1.0.23 | MIT |
 | zopfli | 0.8.4 | Apache-2.0 |
+| zruntime | 0.2.4 | MIT |
 | zune-core | 0.5.3 | MIT OR Apache-2.0 OR Zlib |
 | zune-jpeg | 0.5.15 | MIT OR Apache-2.0 OR Zlib |
 | zvariant | 5.15.1 | MIT |

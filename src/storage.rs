@@ -45,6 +45,7 @@ impl WidgetSize {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
+    pub alerts: Box<crate::alerts::Settings>,
     pub theme: Theme,
     pub language: Option<String>,
     pub unit: Unit,
@@ -69,6 +70,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            alerts: Box::default(),
             theme: Theme::System,
             language: None,
             unit: Unit::Mmol,
@@ -96,6 +98,7 @@ impl Config {
     pub const HISTORY_PERIODS: [u8; 4] = [3, 6, 12, 24];
 
     pub fn normalize(&mut self) {
+        self.alerts.normalize();
         self.history_days = self.history_days.clamp(1, 30);
         self.low = self.low.clamp(40, 200);
         self.high = self.high.clamp(self.low + 1, 400);

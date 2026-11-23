@@ -1,3 +1,5 @@
+mod alert_audio;
+pub mod alerts;
 pub mod app;
 pub mod core;
 pub mod dexcom;
