@@ -66,6 +66,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Easy Glucose")
+            .with_active(
+                !(cfg!(windows)
+                    && config.onboarding_done
+                    && (background || config.start_minimized)),
+            )
             // eframe selects the shared GL alpha configuration from this initial flag.
             // App::update makes only the root window opaque on its first frame;
             // the menu popup still needs this alpha-capable GL configuration.

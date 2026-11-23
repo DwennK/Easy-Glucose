@@ -942,6 +942,7 @@ dependencies = [
  "keyring",
  "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
+ "raw-window-handle",
  "reqwest",
  "serde",
  "serde_json",
@@ -955,6 +956,7 @@ dependencies = [
  "tracing-subscriber",
  "tray-icon",
  "velopack",
+ "windows-sys 0.61.2",
  "winresource",
  "zeroize",
 ]

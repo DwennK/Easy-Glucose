@@ -10,6 +10,8 @@ use tray_icon::{
 pub enum Action {
     Dashboard,
     Widget,
+    #[cfg(windows)]
+    ClockWidget,
     Settings,
     #[cfg(target_os = "macos")]
     Popover,
@@ -18,6 +20,8 @@ pub enum Action {
 pub struct Tray {
     icon: TrayIcon,
     items: [MenuItem; 4],
+    #[cfg(windows)]
+    clock_item: tray_icon::menu::CheckMenuItem,
     pub events: Receiver<Action>,
     last_title: String,
 }
@@ -27,11 +31,16 @@ impl Tray {
         let dashboard = MenuItem::new(Text::OpenApp.get(), true, None);
         let settings = MenuItem::new(Text::Settings.get(), true, None);
         let widget = MenuItem::new(Text::ToggleWidget.get(), true, None);
+        #[cfg(windows)]
+        let clock_item =
+            tray_icon::menu::CheckMenuItem::new(Text::ClockWidget.get(), true, false, None);
         let quit = MenuItem::new(Text::Quit.get(), true, None);
         menu.append_items(&[
             &dashboard,
             &settings,
             &widget,
+            #[cfg(windows)]
+            &clock_item,
             &PredefinedMenuItem::separator(),
             &quit,
         ])
@@ -74,8 +83,16 @@ impl Tray {
         let sid = settings.id().clone();
         let did = dashboard.id().clone();
         let wid = widget.id().clone();
+        #[cfg(windows)]
+        let cid = clock_item.id().clone();
         let qid = quit.id().clone();
         MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
+            #[cfg(windows)]
+            if event.id == cid {
+                let _ = tx.send(Action::ClockWidget);
+                ctx.request_repaint_of(egui::ViewportId::ROOT);
+                return;
+            }
             let action = if event.id == did {
                 Some(Action::Dashboard)
             } else if event.id == sid {
@@ -95,6 +112,8 @@ impl Tray {
         Ok(Self {
             icon,
             items: [dashboard, settings, widget, quit],
+            #[cfg(windows)]
+            clock_item,
             events: rx,
             last_title: String::new(),
         })
@@ -142,7 +161,15 @@ impl Tray {
         }
         Some(position)
     }
+    #[cfg(windows)]
+    pub fn set_clock_checked(&self, enabled: bool) {
+        if self.clock_item.is_checked() != enabled {
+            self.clock_item.set_checked(enabled);
+        }
+    }
     pub fn localize(&self) {
+        #[cfg(windows)]
+        self.clock_item.set_text(Text::ClockWidget.get());
         for (item, text) in self.items.iter().zip([
             Text::OpenApp,
             Text::Settings,

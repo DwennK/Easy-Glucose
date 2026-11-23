@@ -47,6 +47,8 @@ Choose **3, 6, 12, or 24 hours** in any chart. The dashboard, widget and menu ba
 
 The dashboard shows the latest value and trend arrow on the left. On the right, the change compares the last two readings when they are close enough in time. Readings at least ten minutes old are marked as stale, even when the connection is working.
 
+On Windows, turn on **Show glucose above the clock** in Display settings or the system tray menu. The translucent widget shows the latest reading, its age, and the change since the previous reading when available. Click it to open the graph.
+
 Right-click the macOS menu bar item or open the Windows system tray menu to access the main window, settings, and floating widget, or to quit the app.
 
 ## Connect a data source

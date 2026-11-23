@@ -28,6 +28,16 @@ fn a_saved_language_changes_numbers_and_existing_service_messages() {
     for &(code, _) in LANGUAGES {
         i18n::activate(Some(code));
         assert_eq!(Text::Ago.get().matches("{duration}").count(), 1, "{code}");
+        assert_eq!(
+            Text::DeleteQuestion.get().matches("{source}").count(),
+            1,
+            "{code}"
+        );
+        assert_eq!(
+            Text::NoDataPeriod.get().matches("{hours}").count(),
+            1,
+            "{code}"
+        );
         assert_eq!(i18n::notice(&earlier_error), Text::SessionExpired.get());
     }
     i18n::activate(Some("en-US"));

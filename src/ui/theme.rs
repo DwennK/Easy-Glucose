@@ -55,6 +55,20 @@ pub fn install(ctx: &egui::Context) {
             .or_default()
             .insert(0, "system".into());
     }
+    #[cfg(windows)]
+    {
+        let mut family = fonts.families[&egui::FontFamily::Proportional].clone();
+        if let Ok(bytes) = std::fs::read(r"C:\Windows\Fonts\seguisb.ttf") {
+            fonts.font_data.insert(
+                "segoe-semibold".into(),
+                egui::FontData::from_owned(bytes).into(),
+            );
+            family.insert(0, "segoe-semibold".into());
+        }
+        fonts
+            .families
+            .insert(egui::FontFamily::Name("clock-value".into()), family);
+    }
     ctx.set_fonts(fonts);
 }
 pub fn apply(ctx: &egui::Context, theme: Theme) {

@@ -232,6 +232,7 @@ async fn run(
                     if let Err(e) = store.save_source_cache(&c.credentials(), &snapshot.readings) {
                         emit(&events, &ctx, Event::Notice(e));
                     }
+                    emit(&events, &ctx, Event::Data(snapshot.clone()));
                 }
                 continue;
             }
@@ -541,12 +542,13 @@ mod tests {
         .expect("service event")
     }
     #[tokio::test]
-    async fn clearing_history_preserves_the_login_and_scheduled_sync() {
+    async fn pruning_and_clearing_history_update_the_ui_and_preserve_sync() {
         use crate::sources::nightscout::{Auth, Credentials as NsCredentials};
         use storage::CredentialStore;
         let (url, requests) = crate::sources::test_support::server(vec![(
             200,
             serde_json::json!([
+                {"sgv": 95, "date": (Utc::now() - chrono::Duration::days(2)).timestamp_millis()},
                 {"sgv": 105, "date": Utc::now().timestamp_millis()}
             ]),
         )])
@@ -570,7 +572,22 @@ mod tests {
         .unwrap();
         service.commands.send(Command::Connect(1, saved)).unwrap();
         let before = snapshot(&service, 1, State::Connected).await;
-        assert_eq!(before.readings.len(), 1);
+        assert_eq!(before.readings.len(), 2);
+        service
+            .commands
+            .send(Command::Save(Config {
+                history_days: 1,
+                ..Config::default()
+            }))
+            .unwrap();
+        let pruned = snapshot(&service, 1, State::Connected).await;
+        assert_eq!(pruned.readings, before.readings[1..]);
+        assert_eq!(pruned.next_sync, before.next_sync);
+        let (credentials, _) = vault.load(Provider::Nightscout).unwrap().unwrap();
+        assert_eq!(
+            store.load_source_cache(&credentials, 7, false).unwrap(),
+            pruned.readings
+        );
         service.commands.send(Command::Clear).unwrap();
         let after = snapshot(&service, 1, State::Connected).await;
         assert!(after.readings.is_empty());

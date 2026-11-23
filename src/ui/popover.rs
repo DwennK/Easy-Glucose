@@ -228,13 +228,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                     app.mark_config();
                 }
             });
-            let height = (ui.available_height()
-                - if app.snapshot.readings.is_empty() {
-                    24.0
-                } else {
-                    0.0
-                })
-            .max(100.0);
+            let height = ui.available_height().max(100.0);
             dashboard::chart(
                 ui,
                 "menubar_chart",

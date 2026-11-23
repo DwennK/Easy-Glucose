@@ -1,9 +1,7 @@
 use crate::i18n::Text;
 use crate::{
     app::App,
-    core::{
-        GAP_SECONDS, Reading, STALE_SECONDS, Unit, chart_segments, nearest_reading, recent_delta,
-    },
+    core::{GAP_SECONDS, Limit, Reading, STALE_SECONDS, Unit, nearest_reading, recent_delta},
     services::State,
     storage::Config,
     ui::{self, theme},
@@ -18,15 +16,11 @@ const HIGH_GUIDE: egui::Color32 = egui::Color32::from_rgb(233, 184, 32);
 pub fn reading_color(app: &App) -> egui::Color32 {
     let p = theme::palette(&app.ctx);
     match app.snapshot.readings.last() {
-        Some(r) if !r.stale(Utc::now()) => {
-            if r.mgdl < app.config.low {
-                theme::RED
-            } else if r.mgdl > app.config.high {
-                theme::ORANGE
-            } else {
-                theme::GREEN
-            }
-        }
+        Some(r) if !r.stale(Utc::now()) => match glucose_zone(r, &app.config) {
+            Zone::Below => theme::RED,
+            Zone::Within => theme::GREEN,
+            Zone::Above => theme::ORANGE,
+        },
         _ => p.muted,
     }
 }
@@ -161,15 +155,15 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         });
         ui.horizontal_wrapped(|ui| {
             if app.snapshot.state == State::Simulation {
-                ui.scope(|ui| ui::pill(ui, Text::DemoReadings.get(), theme::ORANGE))
+                ui.scope(|ui| ui::pill(ui, Text::DemoReadings.get(), theme::ORANGE, false))
                     .response
                     .on_hover_text(Text::DemoDisclaimer.get());
             }
             if !reading.stale(Utc::now()) {
-                if reading.mgdl < app.config.low {
-                    ui::pill(ui, Text::Below.get(), theme::RED);
-                } else if reading.mgdl > app.config.high {
-                    ui::pill(ui, Text::Above.get(), theme::ORANGE);
+                match glucose_zone(reading, &app.config) {
+                    Zone::Below => ui::pill(ui, Text::Below.get(), theme::RED, false),
+                    Zone::Above => ui::pill(ui, Text::Above.get(), theme::ORANGE, false),
+                    Zone::Within => {}
                 }
             }
             ui::muted(
@@ -219,7 +213,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ui.painter().hline(
                 swatch.x_range(),
                 swatch.center().y,
-                egui::Stroke::new(2.0, color),
+                egui::Stroke::new(2.0_f32, color),
             );
             ui.small(format!(
                 "{} {}",
@@ -253,15 +247,28 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     });
 }
 
-// Strict comparisons keep samples on either guide inside the target range.
-fn glucose_zone(value: f64, low: f64, high: f64) -> usize {
-    if value < low {
-        0
-    } else if value > high {
-        2
-    } else {
-        1
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Zone {
+    Below,
+    Within,
+    Above,
+}
+
+fn glucose_zone(reading: &Reading, config: &Config) -> Zone {
+    match reading.limit {
+        Some(Limit::Below(bound)) if bound <= config.low => Zone::Below,
+        Some(Limit::Above(bound)) if bound >= config.high => Zone::Above,
+        _ if reading.mgdl < config.low => Zone::Below,
+        _ if reading.mgdl > config.high => Zone::Above,
+        _ => Zone::Within,
     }
+}
+
+fn visible_readings(readings: &[Reading], start: i64, end: i64) -> &[Reading] {
+    // The history is sorted by measurement time.
+    let first = readings.partition_point(|r| r.measured_at.timestamp() < start);
+    let past_last = readings.partition_point(|r| r.measured_at.timestamp() <= end);
+    &readings[first..past_last]
 }
 
 pub fn chart(
@@ -279,31 +286,39 @@ pub fn chart(
     let unit = config.unit;
     let low = unit.convert(config.low.into());
     let high = unit.convert(config.high.into());
-    let segments = chart_segments(readings, start as i64, unit);
-    let all_points: Vec<_> = segments
-        .iter()
-        .flatten()
-        .copied()
-        .filter(|p| p[0] <= end)
-        .collect();
+    let visible = visible_readings(readings, start as i64, end as i64);
+    let Some(latest) = visible.last() else {
+        let message = if readings.is_empty() {
+            Text::NoData.get().to_owned()
+        } else {
+            Text::NoDataPeriod
+                .get()
+                .replace("{hours}", &hours.to_string())
+        };
+        ui.allocate_ui_with_layout(
+            egui::vec2(ui.available_width(), height),
+            egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
+            |ui| ui::muted(ui, message),
+        );
+        return;
+    };
+    let point = |r: &Reading| {
+        [
+            r.measured_at.timestamp() as f64,
+            unit.convert(r.mgdl.into()),
+        ]
+    };
+    let values = visible.iter().map(|r| unit.convert(r.mgdl.into()));
     let dark = ui.visuals().dark_mode;
     let y_low = if mini {
-        all_points.iter().map(|p| p[1]).fold(low, f64::min) - unit.convert(15.0)
+        values.clone().fold(low, f64::min) - unit.convert(15.0)
     } else {
-        all_points
-            .iter()
-            .map(|p| p[1])
-            .fold(unit.convert(35.0), f64::min)
-            - unit.convert(5.0)
+        values.clone().fold(unit.convert(35.0), f64::min) - unit.convert(5.0)
     };
     let y_high = if mini {
-        all_points.iter().map(|p| p[1]).fold(high, f64::max) + unit.convert(20.0)
+        values.fold(high, f64::max) + unit.convert(20.0)
     } else {
-        all_points
-            .iter()
-            .map(|p| p[1])
-            .fold(unit.convert(410.0), f64::max)
-            + unit.convert(5.0)
+        values.fold(unit.convert(410.0), f64::max) + unit.convert(5.0)
     };
     let point_color = if dark {
         egui::Color32::from_rgb(237, 241, 247)
@@ -311,7 +326,6 @@ pub fn chart(
         egui::Color32::from_rgb(35, 39, 44)
     };
     let grid_color = theme::palette(ui.ctx()).line.gamma_multiply(0.55);
-    let latest = all_points.last().copied();
     let response = Plot::new((id, hours, unit.label()))
         .height(height)
         .show_axes([!mini, !mini])
@@ -366,7 +380,7 @@ pub fn chart(
                     plot.hline(
                         HLine::new("", f64::from(tick) * interval)
                             .color(grid_color)
-                            .width(0.6)
+                            .width(0.6_f32)
                             .allow_hover(false),
                     );
                 }
@@ -395,36 +409,33 @@ pub fn chart(
             // Each dot is an actual sample. Missing samples remain gaps, with no interpolation.
             let colors = [LOW_GUIDE, point_color, HIGH_GUIDE];
             let mut groups: [Vec<[f64; 2]>; 3] = Default::default();
-            for point in all_points {
-                groups[glucose_zone(point[1], low, high)].push(point);
+            for r in visible {
+                groups[glucose_zone(r, config) as usize].push(point(r));
             }
             for (points, color) in groups.into_iter().zip(colors) {
                 if !points.is_empty() {
                     plot.points(
                         Points::new(Text::Reading.get(), PlotPoints::from(points))
                             .color(color)
-                            .radius(if mini { 1.5 } else { 2.8 })
+                            .radius(if mini { 1.5_f32 } else { 2.8 })
                             .allow_hover(false),
                     );
                 }
             }
-            if let Some(last) = latest {
-                plot.points(
-                    Points::new(Text::Latest.get(), PlotPoints::from(vec![last]))
-                        .color(colors[glucose_zone(last[1], low, high)])
-                        .radius(if mini { 2.7 } else { 5.0_f32 })
-                        .allow_hover(false),
-                );
-            }
+            plot.points(
+                Points::new(Text::Latest.get(), PlotPoints::from(vec![point(latest)]))
+                    .color(colors[glucose_zone(latest, config) as usize])
+                    .radius(if mini { 2.7 } else { 5.0_f32 })
+                    .allow_hover(false),
+            );
             // The whole plot is the hit target. Only horizontal position chooses a reading.
             let pointer = plot.ctx().input(|i| i.pointer.hover_pos())?;
             if !plot.response().hovered() || !plot.transform().frame().contains(pointer) {
                 return None;
             }
             let time = plot.pointer_coordinate()?.x;
-            let selected = nearest_reading(readings, time, start, end)?;
-            let t = selected.measured_at.timestamp() as f64;
-            let y = unit.convert(selected.mgdl.into());
+            let selected = nearest_reading(visible, time, start, end)?;
+            let [t, y] = point(selected);
             plot.vline(
                 VLine::new(Text::SelectedReading.get(), t)
                     .color(theme::ACCENT)
@@ -433,7 +444,7 @@ pub fn chart(
             );
             plot.points(
                 Points::new(Text::Selection.get(), PlotPoints::from(vec![[t, y]]))
-                    .color(colors[glucose_zone(y, low, high)])
+                    .color(colors[glucose_zone(selected, config) as usize])
                     .radius(if mini { 3.5 } else { 5.5_f32 })
                     .allow_hover(false),
             );
@@ -492,9 +503,6 @@ pub fn chart(
         );
         painter.galley(rect.min + egui::vec2(10.0, 8.0), galley, p.text);
     }
-    if readings.is_empty() && !mini {
-        ui::muted(ui, Text::NoData.get());
-    }
 }
 
 #[cfg(test)]
@@ -502,15 +510,46 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sample_colors_follow_the_guides_in_both_units() {
+    fn sample_colors_respect_exact_values_and_sensor_limits_in_both_units() {
         for unit in [Unit::Mmol, Unit::Mgdl] {
-            for (value, expected) in [(69.0, 0), (70.0, 1), (180.0, 1), (181.0, 2)] {
-                assert_eq!(
-                    glucose_zone(unit.convert(value), unit.convert(70.0), unit.convert(180.0)),
-                    expected
-                );
+            let config = Config {
+                unit,
+                low: 40,
+                high: 400,
+                ..Config::default()
+            };
+            for (mgdl, limit, expected) in [
+                (39, None, Zone::Below),
+                (40, Some(Limit::Below(40)), Zone::Below),
+                (40, None, Zone::Within),
+                (400, None, Zone::Within),
+                (400, Some(Limit::Above(400)), Zone::Above),
+                (401, None, Zone::Above),
+            ] {
+                let reading = Reading {
+                    mgdl,
+                    limit,
+                    measured_at: Utc::now(),
+                    trend: crate::core::Trend::Flat,
+                };
+                assert_eq!(glucose_zone(&reading, &config), expected);
             }
         }
+    }
+
+    #[test]
+    fn chart_period_excludes_old_readings_and_includes_both_edges() {
+        let now = Utc::now();
+        let history = [24, 3, 0].map(|hours| Reading {
+            measured_at: now - chrono::Duration::hours(hours),
+            mgdl: 100,
+            trend: crate::core::Trend::Flat,
+            limit: None,
+        });
+        let end = now.timestamp();
+        let start = end - 3 * 3600;
+        assert!(visible_readings(&history[..1], start, end).is_empty());
+        assert_eq!(visible_readings(&history, start, end), &history[1..]);
     }
 
     #[test]

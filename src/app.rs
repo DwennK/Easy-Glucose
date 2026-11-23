@@ -42,6 +42,10 @@ pub struct App {
     hidden: bool,
     first_frame: bool,
     widget_was_open: bool,
+    #[cfg(windows)]
+    pub(crate) clock_monitor: Option<crate::platform::clock::ClockMonitor>,
+    #[cfg(windows)]
+    root_window: crate::platform::clock::DashboardWindow,
     background: bool,
 }
 impl App {
@@ -53,6 +57,16 @@ impl App {
         demo: bool,
         background: bool,
     ) -> Result<Self, String> {
+        #[cfg(windows)]
+        let root_window = {
+            use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+            let RawWindowHandle::Win32(handle) =
+                cc.window_handle().map_err(|e| e.to_string())?.as_raw()
+            else {
+                return Err(Text::TrayUnavailable.english().into());
+            };
+            crate::platform::clock::DashboardWindow::new(handle)
+        };
         let ctx = cc.egui_ctx.clone();
         crate::i18n::activate(config.language.as_deref());
         theme::install(&ctx);
@@ -98,6 +112,10 @@ impl App {
             hidden: false,
             first_frame: true,
             widget_was_open: false,
+            #[cfg(windows)]
+            clock_monitor: None,
+            #[cfg(windows)]
+            root_window,
             background,
         };
         if demo {
@@ -175,6 +193,7 @@ impl App {
         self.send(Command::Disconnect(self.generation, self.config.provider));
     }
     pub fn demo(&mut self) {
+        self.confirm_clear = false;
         self.generation += 1;
         self.snapshot = Snapshot {
             generation: self.generation,
@@ -188,6 +207,7 @@ impl App {
         self.mark_config();
     }
     pub fn restore(&mut self) {
+        self.confirm_clear = false;
         self.generation += 1;
         self.snapshot = Snapshot {
             generation: self.generation,
@@ -216,7 +236,22 @@ impl App {
         };
         self.send(Command::SelectPatient(self.generation, id));
     }
+    fn hide_dashboard(&mut self) {
+        self.hidden = true;
+        #[cfg(windows)]
+        if self.root_window.set_hidden(true) {
+            return;
+        }
+        self.ctx.send_viewport_cmd_to(
+            egui::ViewportId::ROOT,
+            egui::ViewportCommand::Visible(false),
+        );
+    }
     pub fn show_dashboard(&mut self) {
+        #[cfg(windows)]
+        if self.hidden {
+            self.root_window.set_hidden(false);
+        }
         self.popover.close(Instant::now());
         self.ctx.request_repaint_of(egui::ViewportId::ROOT);
         self.hidden = false;
@@ -270,6 +305,11 @@ impl App {
                     {
                         self.popover.toggle(position, Instant::now());
                     }
+                }
+                #[cfg(windows)]
+                Action::ClockWidget => {
+                    self.config.clock_widget = !self.config.clock_widget;
+                    self.mark_config();
                 }
                 Action::Widget => {
                     self.config.widget_open = !self.config.widget_open;
@@ -400,8 +440,7 @@ impl eframe::App for App {
                 && self.tray.is_some()
                 && self.config.onboarding_done
             {
-                self.hidden = true;
-                ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                self.hide_dashboard();
             }
         }
         if ctx.input(|i| i.viewport().close_requested())
@@ -410,15 +449,13 @@ impl eframe::App for App {
             && self.tray.is_some()
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
-            self.hidden = true;
+            self.hide_dashboard();
         }
         if self.config.minimize_to_tray
             && self.tray.is_some()
             && ctx.input(|i| i.viewport().minimized == Some(true))
         {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
-            self.hidden = true;
+            self.hide_dashboard();
         }
         self.navigation(ctx);
         egui::CentralPanel::default()
@@ -514,6 +551,24 @@ impl eframe::App for App {
             });
         }
         self.widget_was_open = self.config.widget_open;
+        #[cfg(windows)]
+        {
+            if let Some(tray) = &self.tray {
+                tray.set_clock_checked(self.config.clock_widget);
+            }
+            if self.config.clock_widget {
+                let monitor = self.clock_monitor.get_or_insert_with(|| {
+                    crate::platform::clock::ClockMonitor::start(ctx.clone())
+                });
+                if let Some(work) = monitor.work_area(ctx.zoom_factor()) {
+                    ui::clock::show(self, ctx, work);
+                } else {
+                    self.popover.close(Instant::now());
+                }
+            } else if self.clock_monitor.take().is_some() {
+                self.popover.close(Instant::now());
+            }
+        }
         if self.popover.open {
             let id = egui::ViewportId::from_hash_of("menubar_graph");
             let builder = egui::ViewportBuilder::default()

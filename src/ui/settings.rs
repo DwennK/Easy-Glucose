@@ -37,11 +37,12 @@ pub fn account(app: &mut App, ui: &mut egui::Ui) {
             ui::pill(
                 ui,
                 &format!(
-                    "✓  {} · {}",
+                    "{} · {}",
                     app.config.provider.label(),
                     Text::Connected.get()
                 ),
                 theme::GREEN,
+                true,
             );
             if app.snapshot.state != State::Connected {
                 ui::muted(ui, app.snapshot.state.label());
@@ -332,6 +333,13 @@ fn display(app: &mut App, ui: &mut egui::Ui) {
             Text::ShowWidget.get(),
             Text::WidgetHint.get(),
         );
+        #[cfg(windows)]
+        ui::switch(
+            ui,
+            &mut app.config.clock_widget,
+            Text::ClockWidget.get(),
+            "",
+        );
         row(ui, Text::Size.get(), |ui| {
             let sizes = [
                 WidgetSize::Compact,
@@ -407,22 +415,29 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
     ui.add_space(8.0);
     ui::group(ui, Text::ChartGuides.get(), |ui| {
         ui::muted(ui, Text::GuidesHint.get());
-        let max_low = app.config.high.saturating_sub(1).min(200);
+        let unit = app.config.unit;
+        // Previously saved guides can round to the same tenth after switching units.
+        let max_low = unit
+            .guide_mgdl(unit.guide_value(app.config.high) - unit.guide_step())
+            .clamp(app.config.low, 200);
         bound(
             ui,
             Text::LowGuide.get(),
             &mut app.config.low,
             40,
             max_low,
-            app.config.unit,
+            unit,
         );
+        let min_high = unit
+            .guide_mgdl(unit.guide_value(app.config.low) + unit.guide_step())
+            .min(app.config.high);
         bound(
             ui,
             Text::HighGuide.get(),
             &mut app.config.high,
-            app.config.low + 1,
+            min_high,
             400,
-            app.config.unit,
+            unit,
         );
     });
     ui.add_space(8.0);
@@ -454,7 +469,16 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
                 app.confirm_clear = true;
             }
         } else {
-            ui.label(Text::DeleteQuestion.get());
+            let demo = app.snapshot.state == State::Simulation;
+            if demo {
+                ui.label(Text::DeleteDemoQuestion.get());
+            } else {
+                ui.label(
+                    Text::DeleteQuestion
+                        .get()
+                        .replace("{source}", app.config.provider.label()),
+                );
+            }
             ui.horizontal(|ui| {
                 if ui.button(Text::Cancel.get()).clicked() {
                     app.confirm_clear = false;
@@ -470,7 +494,9 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
                     app.confirm_clear = false;
                 }
             });
-            ui::muted(ui, Text::ReloadHint.get());
+            if !demo {
+                ui::muted(ui, Text::ReloadHint.get());
+            }
         }
     });
     ui.add_space(8.0);
@@ -534,44 +560,59 @@ fn row(ui: &mut egui::Ui, label: &str, content: impl FnOnce(&mut egui::Ui)) {
 }
 fn bound(ui: &mut egui::Ui, label: &str, value: &mut u16, min: u16, max: u16, unit: Unit) {
     row(ui, label, |ui| {
-        let width = if unit == Unit::Mmol { 250.0 } else { 162.0 };
+        let original = unit.guide_value(*value);
+        let mut displayed = original;
+        let (lower, upper) = (unit.guide_value(min), unit.guide_value(max));
+        let step = unit.guide_step();
+        let decimals = usize::from(unit == Unit::Mmol);
         ui.allocate_ui_with_layout(
-            egui::vec2(width, 26.0),
+            egui::vec2(162.0, 26.0),
             egui::Layout::left_to_right(egui::Align::Center),
             |ui| {
                 if ui
                     .add_enabled(
-                        *value > min,
+                        displayed > lower,
                         egui::Button::new("−").min_size(egui::vec2(26.0, 26.0)),
                     )
                     .on_hover_text(Text::Decrease.get())
                     .clicked()
                 {
-                    *value = value.saturating_sub(1).max(min);
+                    displayed -= step;
                 }
                 ui.add_sized(
                     [84.0, 26.0],
-                    egui::DragValue::new(value)
-                        .range(min..=max)
-                        .suffix(" mg/dL")
-                        .speed(0.0),
+                    egui::DragValue::new(&mut displayed)
+                        .range(lower..=upper)
+                        .fixed_decimals(decimals)
+                        .custom_formatter(|v, _| crate::i18n::decimal(format!("{v:.decimals$}")))
+                        .custom_parser(|text| {
+                            text.trim()
+                                .replace(',', ".")
+                                .parse::<f64>()
+                                .ok()
+                                .filter(|v| v.is_finite())
+                        })
+                        .suffix(format!(" {}", unit.label()))
+                        .speed(step)
+                        .update_while_editing(false),
                 )
                 .on_hover_text(Text::EnterValue.get());
                 if ui
                     .add_enabled(
-                        *value < max,
+                        displayed < upper,
                         egui::Button::new("+").min_size(egui::vec2(26.0, 26.0)),
                     )
                     .on_hover_text(Text::Increase.get())
                     .clicked()
                 {
-                    *value = value.saturating_add(1).min(max);
-                }
-                if unit == Unit::Mmol {
-                    ui::muted(ui, format!("{} mmol/L", Unit::Mmol.format((*value).into())));
+                    displayed += step;
                 }
             },
         );
+        let edited = unit.round_guide(displayed);
+        if edited != original {
+            *value = unit.guide_mgdl(edited).clamp(min, max);
+        }
     });
 }
 

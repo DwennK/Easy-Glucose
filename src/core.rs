@@ -18,11 +18,32 @@ impl Unit {
             Self::Mgdl => "mg/dL",
         }
     }
-    pub fn convert(self, value: f64) -> f64 {
+    fn mgdl_per_unit(self) -> f64 {
         match self {
-            Self::Mmol => value / 18.0,
-            Self::Mgdl => value,
+            Self::Mmol => 18.0,
+            Self::Mgdl => 1.0,
         }
+    }
+    pub fn convert(self, value: f64) -> f64 {
+        value / self.mgdl_per_unit()
+    }
+    pub(crate) fn guide_step(self) -> f64 {
+        match self {
+            Self::Mmol => 0.1,
+            Self::Mgdl => 1.0,
+        }
+    }
+    pub(crate) fn guide_value(self, mgdl: u16) -> f64 {
+        self.round_guide(self.convert(mgdl.into()))
+    }
+    pub(crate) fn round_guide(self, value: f64) -> f64 {
+        match self {
+            Self::Mmol => (value * 10.0).round() / 10.0,
+            Self::Mgdl => value.round(),
+        }
+    }
+    pub(crate) fn guide_mgdl(self, value: f64) -> u16 {
+        (value * self.mgdl_per_unit()).round() as u16
     }
     pub fn format(self, value: f64) -> String {
         match self {
@@ -234,7 +255,7 @@ pub fn recent_delta(history: &[Reading]) -> Option<(f64, i64)> {
     }
     Some((
         f64::from(pair[1].mgdl) - f64::from(pair[0].mgdl),
-        seconds / 60,
+        (seconds + 30) / 60,
     ))
 }
 
@@ -266,6 +287,23 @@ mod tests {
         assert_eq!(Unit::Mmol.format(100.0), "5.6");
         assert_eq!(Unit::Mgdl.format(100.0), "100");
         assert_eq!(Unit::Mmol.delta(-18.0), "-1.0");
+    }
+    #[test]
+    fn chart_guides_move_one_displayed_step() {
+        assert_eq!(Unit::Mmol.guide_value(70), 3.9);
+        assert_eq!(Unit::Mmol.guide_mgdl(4.0), 72);
+        assert_eq!(Unit::Mgdl.guide_value(70), 70.0);
+        for unit in [Unit::Mmol, Unit::Mgdl] {
+            for mgdl in 40..=400 {
+                for direction in [-1.0, 1.0] {
+                    let next = unit.guide_value(mgdl) + direction * unit.guide_step();
+                    assert_eq!(
+                        unit.guide_value(unit.guide_mgdl(next)),
+                        unit.round_guide(next)
+                    );
+                }
+            }
+        }
     }
     #[test]
     fn trends() {
@@ -339,6 +377,10 @@ mod tests {
         assert_eq!(recent_delta(&h), Some((10.0, 5)));
         h[0].measured_at -= chrono::Duration::minutes(5);
         assert!(recent_delta(&h).is_none());
+        for (seconds, minutes) in [(45, 1), (59, 1), (60, 1), (89, 1), (90, 2), (299, 5)] {
+            h[0].measured_at = now - chrono::Duration::seconds(seconds);
+            assert_eq!(recent_delta(&h), Some((10.0, minutes)));
+        }
     }
     #[test]
     fn chart_selection_snaps_to_time_and_breaks_ties_consistently() {

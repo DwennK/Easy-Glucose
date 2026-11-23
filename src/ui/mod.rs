@@ -1,4 +1,6 @@
 use crate::storage::WidgetSize;
+#[cfg(windows)]
+pub mod clock;
 pub mod dashboard;
 pub mod popover;
 pub mod settings;
@@ -52,18 +54,29 @@ pub fn primary(ui: &mut egui::Ui, text: &str) -> egui::Response {
             .min_size(egui::vec2(0.0, 28.0)),
     )
 }
-pub fn pill(ui: &mut egui::Ui, text: &str, color: egui::Color32) {
+pub fn pill(ui: &mut egui::Ui, text: &str, color: egui::Color32, checked: bool) {
+    let mut margin = egui::Margin::symmetric(7, 2);
+    if checked {
+        margin.left += 14;
+    }
     egui::Frame::new()
         .fill(color.gamma_multiply(0.12))
         .corner_radius(6)
-        .inner_margin(egui::Margin::symmetric(7, 2))
+        .inner_margin(margin)
         .show(ui, |ui| {
-            ui.label(
-                RichText::new(text)
-                    .size(11.0)
-                    .strong()
-                    .color(theme::ink(ui.ctx(), color)),
-            );
+            let ink = theme::ink(ui.ctx(), color);
+            let label = ui.label(RichText::new(text).size(11.0).strong().color(ink));
+            if checked {
+                let start = label.rect.left_center() - egui::vec2(13.0, 0.0);
+                ui.painter().add(egui::Shape::line(
+                    vec![
+                        start,
+                        start + egui::vec2(3.0, 3.0),
+                        start + egui::vec2(8.5, -3.0),
+                    ],
+                    egui::Stroke::new(1.5_f32, ink),
+                ));
+            }
         });
 }
 pub fn logo(ui: &mut egui::Ui, size: f32) {
@@ -261,7 +274,7 @@ pub fn switch(ui: &mut egui::Ui, value: &mut bool, title: &str, hint: &str) -> e
         ui.painter().rect_stroke(
             track.expand(2.0),
             12,
-            egui::Stroke::new(1.5, theme::ACCENT),
+            egui::Stroke::new(1.5_f32, theme::ACCENT),
             egui::StrokeKind::Outside,
         );
     }
@@ -279,7 +292,7 @@ pub fn group<R>(ui: &mut egui::Ui, title: &str, content: impl FnOnce(&mut egui::
     ui.label(RichText::new(title).size(13.0).strong());
     egui::Frame::new()
         .fill(p.surface)
-        .stroke(egui::Stroke::new(0.7, p.line))
+        .stroke(egui::Stroke::new(0.7_f32, p.line))
         .corner_radius(10)
         .inner_margin(12)
         .show(ui, |ui| {
