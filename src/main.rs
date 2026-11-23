@@ -51,7 +51,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .create(true)
         .truncate(false)
         .open(store.directory.join("instance.lock"))?;
-    if lock.try_lock_exclusive().is_err() {
+    if let Err(error) = lock.try_lock_exclusive() {
+        if error.raw_os_error() != fs2::lock_contended_error().raw_os_error() {
+            return Err(error.into());
+        }
+        #[cfg(windows)]
+        if !std::env::args().any(|arg| arg == "--background")
+            && easy_glucose::platform::dashboard::activate_existing(&store.directory)
+        {
+            return Ok(());
+        }
         eprintln!("{}", easy_glucose::i18n::Text::AlreadyOpen.get());
         return Ok(());
     }

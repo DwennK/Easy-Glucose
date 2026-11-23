@@ -45,7 +45,7 @@ pub struct App {
     #[cfg(windows)]
     pub(crate) clock_monitor: Option<crate::platform::clock::ClockMonitor>,
     #[cfg(windows)]
-    root_window: crate::platform::clock::DashboardWindow,
+    root_window: crate::platform::dashboard::DashboardWindow,
     background: bool,
 }
 impl App {
@@ -65,7 +65,12 @@ impl App {
             else {
                 return Err(Text::TrayUnavailable.english().into());
             };
-            crate::platform::clock::DashboardWindow::new(handle)
+            crate::platform::dashboard::DashboardWindow::new(
+                handle,
+                &store.directory,
+                cc.egui_ctx.clone(),
+            )
+            .map_err(|e| e.to_string())?
         };
         let ctx = cc.egui_ctx.clone();
         crate::i18n::activate(config.language.as_deref());
@@ -456,6 +461,10 @@ impl eframe::App for App {
             && ctx.input(|i| i.viewport().minimized == Some(true))
         {
             self.hide_dashboard();
+        }
+        #[cfg(windows)]
+        if self.root_window.take_open_request() {
+            self.show_dashboard();
         }
         self.navigation(ctx);
         egui::CentralPanel::default()

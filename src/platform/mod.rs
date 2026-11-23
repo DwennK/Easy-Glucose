@@ -1,6 +1,8 @@
 use crate::i18n::Text;
 #[cfg(windows)]
 pub mod clock;
+#[cfg(windows)]
+pub mod dashboard;
 pub mod tray;
 
 pub fn set_autostart(enabled: bool) -> Result<(), String> {
