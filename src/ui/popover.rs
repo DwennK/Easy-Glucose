@@ -207,15 +207,6 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                     },
                 );
             }
-            ui.label(
-                RichText::new(format!(
-                    "{} · {}",
-                    app.snapshot.provider.label(),
-                    app.snapshot.state.label()
-                ))
-                .size(12.0)
-                .color(p.muted),
-            );
             if let Some(name) = &app.snapshot.patient_name {
                 ui.label(RichText::new(name).size(12.0).color(p.muted));
             }
