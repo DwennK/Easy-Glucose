@@ -6,7 +6,7 @@ use crate::{
     services::{Command, State},
     sources::{Provider, nightscout::Auth},
     storage::{Theme, WidgetSize},
-    ui::{self, Segment, theme},
+    ui::{self, Segment, SegmentStyle, theme},
 };
 use eframe::egui::{self, RichText};
 
@@ -288,9 +288,10 @@ pub fn header(app: &mut App, ui: &mut egui::Ui) {
     ui::segments(
         ui,
         &mut app.settings_tab,
+        SegmentStyle::Tabs,
         &[
             (0, Segment::Text(Text::Display.get())),
-            (1, Segment::Text(Text::Sources.get())),
+            (1, Segment::Text(Text::SourcesTab.get())),
             (3, Segment::Text(Text::Alerts.get())),
             (2, Segment::Text(Text::Advanced.get())),
         ],
@@ -317,10 +318,12 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
 fn display(app: &mut App, ui: &mut egui::Ui) {
     ui::group(ui, Text::AppearanceUnits.get(), |ui| {
         language_picker(app, ui);
+        row_separator(ui);
         row(ui, Text::Appearance.get(), |ui| {
             ui::segments(
                 ui,
                 &mut app.config.theme,
+                SegmentStyle::Control,
                 &[
                     (Theme::Light, Segment::Text(Text::Light.get())),
                     (Theme::Dark, Segment::Text(Text::Dark.get())),
@@ -328,10 +331,12 @@ fn display(app: &mut App, ui: &mut egui::Ui) {
                 ],
             );
         });
+        row_separator(ui);
         row(ui, Text::Units.get(), |ui| {
             ui::segments(
                 ui,
                 &mut app.config.unit,
+                SegmentStyle::Control,
                 &[
                     (Unit::Mmol, Segment::Text(Unit::Mmol.label())),
                     (Unit::Mgdl, Segment::Text(Unit::Mgdl.label())),
@@ -348,12 +353,16 @@ fn display(app: &mut App, ui: &mut egui::Ui) {
             Text::WidgetHint.get(),
         );
         #[cfg(windows)]
-        ui::switch(
-            ui,
-            &mut app.config.clock_widget,
-            Text::ClockWidget.get(),
-            "",
-        );
+        {
+            row_separator(ui);
+            ui::switch(
+                ui,
+                &mut app.config.clock_widget,
+                Text::ClockWidget.get(),
+                "",
+            );
+        }
+        row_separator(ui);
         row(ui, Text::Size.get(), |ui| {
             let sizes = [
                 WidgetSize::Compact,
@@ -363,13 +372,18 @@ fn display(app: &mut App, ui: &mut egui::Ui) {
             ui::segments(
                 ui,
                 &mut app.config.widget_size,
+                SegmentStyle::Control,
                 &sizes.map(|size| (size, Segment::Window(size))),
             );
         });
+        row_separator(ui);
         ui::switch(ui, &mut app.config.always_on_top, Text::OnTop.get(), "");
-        if app.config.widget_open && ui.button(Text::ResetWidget.get()).clicked() {
-            app.config.widget_position = Some([80.0, 80.0]);
-            app.reset_widget = true;
+        if app.config.widget_open {
+            row_separator(ui);
+            if ui.button(Text::ResetWidget.get()).clicked() {
+                app.config.widget_position = Some([80.0, 80.0]);
+                app.reset_widget = true;
+            }
         }
     });
 }
@@ -407,18 +421,21 @@ pub fn account_dialog(app: &mut App, ctx: &egui::Context) {
 fn advanced(app: &mut App, ui: &mut egui::Ui) {
     ui::group(ui, Text::Startup.get(), |ui| {
         ui::switch(ui, &mut app.config.autostart, Text::LoginStart.get(), "");
+        row_separator(ui);
         ui::switch(
             ui,
             &mut app.config.start_minimized,
             Text::StartHidden.get(),
             Text::TrayHint.get(),
         );
+        row_separator(ui);
         ui::switch(
             ui,
             &mut app.config.close_to_tray,
             Text::KeepRunning.get(),
             Text::BackgroundHint.get(),
         );
+        row_separator(ui);
         ui::switch(
             ui,
             &mut app.config.minimize_to_tray,
@@ -445,6 +462,7 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
         let min_high = unit
             .guide_mgdl(unit.guide_value(app.config.low) + unit.guide_step())
             .min(app.config.high);
+        row_separator(ui);
         bound(
             ui,
             Text::HighGuide.get(),
@@ -478,6 +496,7 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
                 Text::Unencrypted.get()
             ),
         );
+        row_separator(ui);
         if !app.confirm_clear {
             if ui.button(Text::DeleteHistory.get()).clicked() {
                 app.confirm_clear = true;
@@ -563,6 +582,18 @@ fn advanced(app: &mut App, ui: &mut egui::Ui) {
             ),
         );
     });
+}
+
+fn row_separator(ui: &egui::Ui) {
+    // Draw inside the existing row gap so the controls keep their spacing and hit areas.
+    let painter = ui.painter();
+    let y = painter.round_to_pixel_center(ui.cursor().top() - ui.spacing().item_spacing.y / 2.0);
+    let color = ui.visuals().widgets.noninteractive.bg_stroke.color;
+    painter.hline(
+        ui.max_rect().x_range(),
+        y,
+        egui::Stroke::new(ui.ctx().pixels_per_point().recip(), color),
+    );
 }
 
 fn row(ui: &mut egui::Ui, label: &str, content: impl FnOnce(&mut egui::Ui)) {

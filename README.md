@@ -18,13 +18,13 @@ Choose the download for your computer from the [latest release](https://github.c
 | Windows x64 installer | [Easy Glucose Setup](https://github.com/DwennK/Easy-Glucose/releases/latest/download/Easy-Glucose-Setup.exe) | Run the installer. |
 | Windows x64 portable | [Windows x64](https://github.com/DwennK/Easy-Glucose/releases/latest/download/Easy-Glucose-x86_64-pc-windows-msvc.zip) | Extract the entire archive and run the app from the extracted folder. |
 
-Starting with 1.1.0, Easy Glucose checks GitHub Releases once a day. Choose **Install and restart** when a new version appears, or check manually in **Settings → Advanced options → About**. If you are using 1.0.x, quit it and install 1.1.0 manually once. Your settings and glucose history stay in your user profile.
+Starting with 1.1.0, Easy Glucose checks GitHub Releases once a day. Choose **Install and restart** when a new version appears, or check manually in **Settings → Advanced → About**. If you are using 1.0.x, quit it and install 1.1.0 manually once. Your settings and glucose history stay in your user profile.
 
 The macOS apps are ad hoc signed and have not been notarized by Apple. The Windows executable is unsigned.
 
 ## Try the demo
 
-Open Easy Glucose and choose **Try the demo** on the welcome screen, or find it under **Settings → Advanced options**. The screenshots in this README use the macOS demo with example low and high guides.
+Open Easy Glucose and choose **Try the demo** on the welcome screen, or find it under **Settings → Advanced**. The screenshots in this README use the macOS demo with example low and high guides.
 
 To run the demo from source, install stable Rust and your platform’s build tools, then run:
 
@@ -34,7 +34,7 @@ cd Easy-Glucose
 cargo run --release --locked -- --demo
 ```
 
-To view your own readings, open **Settings → Data sources**, choose your provider and sign in. A green checkmark confirms a successful connection. Easy Glucose shows how old each reading is. Use it as a secondary display and rely on your sensor’s official app for alarms and treatment decisions.
+To view your own readings, open **Settings → Sources**, choose your provider and sign in. A green checkmark confirms a successful connection. Easy Glucose shows how old each reading is. Use it as a secondary display and rely on your sensor’s official app for alarms and treatment decisions.
 
 In **Settings → Alerts**, enable the events you want on this computer and choose a sound and playback intensity for each. Each alert defaults to its Dexcom G7 sound. Soft, Medium, and Intense play three distinct recordings. Select **Listen** to preview a sound or import a personal WAV. Sound names follow the app’s selected language. Desktop alerts use readings received while Easy Glucose is running. The demo supports sound previews.
 
@@ -61,7 +61,7 @@ Right-click the macOS menu bar item or open the Windows system tray menu to acce
 | **FreeStyle Libre · LibreLinkUp** | Use a LibreLinkUp account that has accepted a sharing invitation. If several people share data with you, choose whose readings to display. |
 | **Nightscout / Nocturne** | Enter the site’s HTTPS URL. For a private site, provide a read token. Public sites work without a token. API secret authentication is also available. |
 
-Credentials are stored in macOS Keychain or Windows Credential Manager. Easy Glucose keeps a separate local history for each source and associates it with the relevant account, person, or site. **Settings → Advanced options → Clear history** removes the active source’s local readings. Your sign-in and scheduled sync are preserved. The provider may return recent readings again on the next sync. The app does not encrypt the local readings file. The Dexcom Share and LibreLinkUp connections use unofficial protocols. [How the connectors work and their limitations (in French)](docs/sources.md)
+Credentials are stored in macOS Keychain or Windows Credential Manager. Easy Glucose keeps a separate local history for each source and associates it with the relevant account, person, or site. **Settings → Advanced → Clear history** removes the active source’s local readings. Your sign-in and scheduled sync are preserved. The provider may return recent readings again on the next sync. The app does not encrypt the local readings file. The Dexcom Share and LibreLinkUp connections use unofficial protocols. [How the connectors work and their limitations (in French)](docs/sources.md)
 
 ## Languages and units
 

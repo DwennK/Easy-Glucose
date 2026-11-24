@@ -48,6 +48,7 @@ pub fn history_period(ui: &mut egui::Ui, hours: &mut u8) -> bool {
     segments(
         ui,
         hours,
+        SegmentStyle::Control,
         &labels
             .each_ref()
             .map(|(h, label)| (*h, Segment::Text(label))),
@@ -147,10 +148,17 @@ impl<'a> Segment<'a> {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum SegmentStyle {
+    Control,
+    Tabs,
+}
+
 /// Allocate the whole control first so the options keep their reading order in right-aligned rows.
 pub fn segments<T: Copy + PartialEq>(
     ui: &mut egui::Ui,
     value: &mut T,
+    style: SegmentStyle,
     options: &[(T, Segment<'_>)],
 ) -> bool {
     let p = theme::palette(ui.ctx());
@@ -168,7 +176,14 @@ pub fn segments<T: Copy + PartialEq>(
             }
             Segment::Window(_) => 45.0,
         })
-        .fold(35.0_f32, f32::max)
+        .fold(
+            if style == SegmentStyle::Tabs {
+                76.0
+            } else {
+                35.0
+            },
+            f32::max,
+        )
         .ceil();
     let width = width.min(((ui.available_width() - 4.0) / options.len() as f32).max(1.0));
     let labels: Vec<_> = options
@@ -214,22 +229,44 @@ pub fn segments<T: Copy + PartialEq>(
                 label,
             )
         });
-        if selected || response.hovered() {
-            painter.rect_filled(rect, 5, p.surface);
-        }
-        if selected || response.has_focus() {
-            let stroke = if response.has_focus() {
-                egui::Stroke::new(2.0_f32, theme::ACCENT)
-            } else {
-                egui::Stroke::new(1.0_f32, p.line)
-            };
-            painter.rect_stroke(rect, 5, stroke, egui::StrokeKind::Inside);
-        }
-        let ink = if selected {
-            theme::ink(ui.ctx(), theme::ACCENT)
-        } else {
-            p.text
+        let ink = match style {
+            SegmentStyle::Tabs => {
+                let raised = if ui.visuals().dark_mode {
+                    p.line
+                } else {
+                    p.surface
+                };
+                if selected {
+                    let shadow = egui::epaint::Shadow {
+                        offset: [0, 1],
+                        blur: 3,
+                        spread: 0,
+                        color: egui::Color32::from_black_alpha(38),
+                    };
+                    painter.add(shadow.as_shape(rect, 5));
+                    painter.rect_filled(rect, 5, raised);
+                } else if response.hovered() {
+                    painter.rect_filled(rect, 5, p.secondary.lerp_to_gamma(raised, 0.45));
+                }
+                p.text
+            }
+            SegmentStyle::Control => {
+                if selected || response.hovered() {
+                    painter.rect_filled(rect, 5, p.surface);
+                }
+                if selected && !response.has_focus() {
+                    painter.rect_stroke(rect, 5, (1.0, p.line), egui::StrokeKind::Inside);
+                }
+                if selected {
+                    theme::ink(ui.ctx(), theme::ACCENT)
+                } else {
+                    p.text
+                }
+            }
         };
+        if response.has_focus() {
+            painter.rect_stroke(rect, 5, (2.0, theme::ACCENT), egui::StrokeKind::Inside);
+        }
         match option {
             Segment::Text(_) => {
                 if let Some(galley) = &labels[index] {
