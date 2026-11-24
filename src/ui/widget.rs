@@ -130,10 +130,11 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 ui::muted(ui, app.config.unit.label());
             });
             if let Some(r) = app.snapshot.readings.last() {
+                let now = chrono::Utc::now();
                 if compact {
-                    let age = r.age_seconds(chrono::Utc::now()).max(0) / 60;
+                    let age = r.age_seconds(now).max(0) / 60;
                     let time = r.measured_at.with_timezone(&chrono::Local).format("%H:%M");
-                    let stale = r.stale(chrono::Utc::now());
+                    let stale = r.stale(now);
                     ui.horizontal(|ui| {
                         ui.label(
                             RichText::new(format!(
@@ -148,10 +149,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                                 p.muted
                             }),
                         );
-                        if !stale
-                            && let Some((delta, _)) =
-                                crate::core::recent_delta(&app.snapshot.readings)
-                        {
+                        if let Some((delta, _)) = app.snapshot.current_delta(now) {
                             ui.label(
                                 RichText::new(format!("Δ {}", app.config.unit.delta(delta)))
                                     .size(10.0)
@@ -161,7 +159,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                     });
                 } else {
                     ui.label(RichText::new(dashboard::freshness(r)).size(11.0).color(
-                        if r.stale(chrono::Utc::now()) {
+                        if r.stale(now) {
                             theme::ink(ctx, theme::ORANGE)
                         } else {
                             p.muted
@@ -178,7 +176,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                                 r.measured_at.with_timezone(&chrono::Local).format("%H:%M")
                             ),
                         );
-                        if let Some((d, m)) = crate::core::recent_delta(&app.snapshot.readings) {
+                        if let Some((d, m)) = app.snapshot.current_delta(now) {
                             ui::muted(
                                 ui,
                                 format!(

@@ -1,6 +1,5 @@
 use crate::{
     app::App,
-    core::recent_delta,
     i18n::Text,
     services::State,
     ui::{dashboard, popover, theme},
@@ -49,7 +48,7 @@ pub fn show(app: &mut App, ctx: &egui::Context, work: egui::Rect) {
         if let Some(r) = reading {
             if r.stale(now) {
                 details.push(Text::Stale.get().to_owned());
-            } else if let Some((change, _)) = recent_delta(&app.snapshot.readings) {
+            } else if let Some((change, _)) = app.snapshot.current_delta(now) {
                 delta = unit.delta(change);
             }
             details.push(format!(

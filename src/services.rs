@@ -70,6 +70,14 @@ pub struct Snapshot {
     pub next_sync: Option<DateTime<Utc>>,
     pub error: Option<String>,
 }
+impl Snapshot {
+    pub fn current_delta(&self, now: DateTime<Utc>) -> Option<(f64, i64)> {
+        if self.readings.last()?.stale(now) {
+            return None;
+        }
+        crate::core::recent_delta(&self.readings)
+    }
+}
 impl Default for Snapshot {
     fn default() -> Self {
         Self {
@@ -589,6 +597,32 @@ async fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn current_delta_disappears_when_the_latest_reading_becomes_stale() {
+        let now = Utc::now();
+        let latest = Reading {
+            mgdl: 105,
+            measured_at: now,
+            trend: crate::core::Trend::Flat,
+            limit: None,
+        };
+        let previous = Reading {
+            mgdl: 100,
+            measured_at: now - chrono::Duration::minutes(5),
+            ..latest.clone()
+        };
+        let data = Snapshot {
+            readings: vec![previous, latest],
+            ..Snapshot::default()
+        };
+        let stale_at = now + chrono::Duration::seconds(crate::core::STALE_SECONDS);
+        assert_eq!(
+            data.current_delta(stale_at - chrono::Duration::seconds(1)),
+            Some((5., 5))
+        );
+        assert_eq!(data.current_delta(stale_at), None);
+    }
+
     #[test]
     fn states_and_backoff() {
         assert_eq!(State::after_result(&Ok(vec![])), State::Empty);

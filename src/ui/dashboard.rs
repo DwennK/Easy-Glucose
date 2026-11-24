@@ -1,7 +1,7 @@
 use crate::i18n::Text;
 use crate::{
     app::App,
-    core::{GAP_SECONDS, Limit, Reading, STALE_SECONDS, Unit, nearest_reading, recent_delta},
+    core::{GAP_SECONDS, Limit, Reading, STALE_SECONDS, Unit, nearest_reading},
     services::State,
     storage::Config,
     ui::{self, theme},
@@ -104,7 +104,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     .size(27.0)
                     .color(theme::ink(ui.ctx(), reading_color(app))),
             );
-            let delta = recent_delta(&app.snapshot.readings);
+            let delta = app.snapshot.current_delta(Utc::now());
             let width = ui.available_width();
             ui.allocate_ui_with_layout(
                 egui::vec2(width, if delta.is_some() { 45.0 } else { 18.0 }),
