@@ -527,19 +527,26 @@ async fn run(
                         .collect();
                     play(kinds, rules);
                 }
-                merge_readings(
-                    &mut snapshot.readings,
-                    readings,
-                    Utc::now(),
-                    config.history_days,
-                );
+                let credentials = c.credentials();
                 if persist_login {
-                    if let Err(e) = vault.save(&c.credentials()) {
-                        emit(&events, &ctx, Event::Notice(e));
+                    // Libre resolves the patient during fetch. Read the matching
+                    // cache only after authentication confirms the final identity.
+                    let saved = store
+                        .load_source_cache(&credentials, config.history_days, false)
+                        .and_then(|mut cached| {
+                            cached.append(&mut snapshot.readings);
+                            snapshot.readings = cached;
+                            vault.save(&credentials)
+                        });
+                    match saved {
+                        Ok(()) => persist_login = false,
+                        Err(e) => emit(&events, &ctx, Event::Notice(e)),
                     }
-                    persist_login = false;
                 }
-                if let Err(e) = store.save_source_cache(&c.credentials(), &snapshot.readings) {
+                merge_readings(&mut snapshot.readings, readings, now, config.history_days);
+                if !persist_login
+                    && let Err(e) = store.save_source_cache(&credentials, &snapshot.readings)
+                {
                     emit(&events, &ctx, Event::Notice(e));
                 }
                 let delay = snapshot
@@ -765,6 +772,64 @@ mod tests {
                 .is_empty()
         );
         assert_eq!(requests.await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn successful_reconnection_merges_only_the_authenticated_accounts_history() {
+        use crate::sources::nightscout::{Auth, Credentials as NsCredentials};
+        use storage::CredentialStore;
+
+        for same_account in [true, false] {
+            let now = Utc::now();
+            let (url, requests) = crate::sources::test_support::server(vec![(
+                200,
+                serde_json::json!([{"sgv":110, "date":now.timestamp_millis()}]),
+            )])
+            .await;
+            let credentials = |token: &str| {
+                Credentials::Nightscout(NsCredentials {
+                    url: format!("{url}/"),
+                    token: token.to_owned().into(),
+                    auth: Auth::Token,
+                })
+            };
+            let saved = credentials("saved");
+            let login = credentials(if same_account { "saved" } else { "other" });
+            let old = Reading {
+                mgdl: 95,
+                measured_at: now - chrono::Duration::days(2),
+                trend: crate::core::Trend::Flat,
+                limit: None,
+            };
+            let dir = tempfile::tempdir().unwrap();
+            let store = Store {
+                directory: dir.path().into(),
+            };
+            store
+                .save_source_cache(&saved, std::slice::from_ref(&old))
+                .unwrap();
+            let vault = MemoryVault::default();
+            vault.save(&saved).unwrap();
+            let service = Service::start_with_credentials(
+                store.clone(),
+                Config::default(),
+                egui::Context::default(),
+                Box::new(vault),
+            )
+            .unwrap();
+            service
+                .commands
+                .send(Command::Connect(1, login.clone()))
+                .unwrap();
+            let connected = snapshot(&service, 1, State::Connected).await;
+            assert_eq!(connected.readings.last().unwrap().mgdl, 110);
+            assert_eq!(connected.readings.contains(&old), same_account);
+            assert_eq!(
+                store.load_source_cache(&login, 7, false).unwrap(),
+                connected.readings
+            );
+            assert_eq!(requests.await.unwrap().len(), 1);
+        }
     }
 
     #[tokio::test]
