@@ -101,6 +101,8 @@ pub fn parse_readings(value: Value) -> Result<Vec<Reading>, Error> {
         return Err(Error::Protocol);
     }
     let mut readings = Vec::with_capacity(entries.len());
+    let now = Utc::now();
+    let mut invalid_entry = false;
     for entry in entries {
         if entry
             .get("type")
@@ -109,48 +111,51 @@ pub fn parse_readings(value: Value) -> Result<Vec<Reading>, Error> {
         {
             continue;
         }
-        let mgdl = entry
-            .get("sgv")
-            .and_then(Value::as_u64)
-            .and_then(|n| u16::try_from(n).ok())
-            .ok_or(Error::Protocol)?;
-        let measured_at = if let Some(date) = entry.get("date") {
-            // The v1 date is UTC milliseconds, never seconds or a guessed local time.
-            date.as_i64()
-                .and_then(DateTime::from_timestamp_millis)
-                .ok_or(Error::Protocol)?
+        if let Some(reading) = parse_entry(entry, now) {
+            readings.push(reading);
         } else {
-            DateTime::parse_from_rfc3339(
-                entry
-                    .get("dateString")
-                    .and_then(Value::as_str)
-                    .ok_or(Error::Protocol)?,
-            )
-            .map_err(|_| Error::Protocol)?
-            .with_timezone(&Utc)
-        };
-        if measured_at.timestamp() < 946684800 {
-            return Err(Error::Protocol);
+            invalid_entry = true;
         }
-        let reading = Reading {
-            mgdl,
-            measured_at,
-            trend: Trend::parse(
-                entry
-                    .get("direction")
-                    .filter(|v| v.is_string())
-                    .unwrap_or(&entry["trend"]),
-            ),
-            limit: None,
-        };
-        if !reading.valid(Utc::now()) {
-            return Err(Error::Protocol);
-        }
-        readings.push(reading);
+    }
+    if invalid_entry && readings.is_empty() {
+        return Err(Error::Protocol);
     }
     readings.sort_by_key(|r| r.measured_at);
     readings.dedup_by_key(|r| r.measured_at);
     Ok(readings)
+}
+
+fn parse_entry(entry: &Value, now: DateTime<Utc>) -> Option<Reading> {
+    let mgdl = entry
+        .get("sgv")
+        .and_then(Value::as_u64)
+        .and_then(|n| u16::try_from(n).ok())?;
+    let measured_at = if let Some(date) = entry.get("date") {
+        // The v1 date is UTC milliseconds, never seconds or a guessed local time.
+        date.as_i64().and_then(DateTime::from_timestamp_millis)?
+    } else {
+        DateTime::parse_from_rfc3339(entry.get("dateString").and_then(Value::as_str)?)
+            .ok()?
+            .with_timezone(&Utc)
+    };
+    if measured_at.timestamp() < 946684800 {
+        return None;
+    }
+    let reading = Reading {
+        mgdl,
+        measured_at,
+        trend: Trend::parse(
+            entry
+                .get("direction")
+                .filter(|v| v.is_string())
+                .unwrap_or(&entry["trend"]),
+        ),
+        limit: None,
+    };
+    if !reading.valid(now) {
+        return None;
+    }
+    Some(reading)
 }
 
 #[cfg(test)]
@@ -203,6 +208,29 @@ mod tests {
             1767265200
         );
     }
+    #[tokio::test]
+    async fn mixed_response_keeps_only_valid_sensor_readings() {
+        let now = Utc::now().timestamp_millis();
+        let response = json!([
+            {"date": now, "sgv": 123},
+            {"date": now - 7_200_000, "sgv": 0},
+            {"dateString": "bad timestamp", "sgv": 105},
+            {"type": "cal"}
+        ]);
+        let (url, server) = super::super::test_support::server(vec![(200, response)]).await;
+        let mut client = Client::new(Credentials {
+            url,
+            token: Default::default(),
+            auth: Auth::Token,
+        })
+        .unwrap();
+        let readings = client.fetch().await.unwrap();
+        assert_eq!(readings.len(), 1);
+        assert_eq!(readings[0].mgdl, 123);
+        assert_eq!(readings[0].measured_at.timestamp_millis(), now);
+        server.await.unwrap();
+    }
+
     #[tokio::test]
     async fn token_secret_and_public_access_only_issue_get_requests() {
         for (auth, token) in [
