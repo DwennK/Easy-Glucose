@@ -12,14 +12,22 @@ use windows_sys::Win32::{
     UI::{
         HiDpi::GetDpiForSystem,
         WindowsAndMessaging::{
-            GetClassNameW, GetClientRect, GetDesktopWindow, GetForegroundWindow, GetShellWindow,
+            GetClassNameW, GetClientRect, GetCursorPos, GetDesktopWindow, GetForegroundWindow,
+            GetShellWindow,
         },
     },
 };
 
+pub fn cursor_position(pixels_per_point: f32) -> Option<egui::Pos2> {
+    let mut point = POINT::default();
+    (unsafe { GetCursorPos(&mut point) } != 0)
+        .then(|| egui::pos2(point.x as f32, point.y as f32) / pixels_per_point)
+}
+
 #[derive(Clone, Copy, PartialEq)]
 struct WorkArea {
     edges: [i32; 4],
+    screen: [i32; 4],
     dpi: u32,
 }
 
@@ -62,8 +70,10 @@ fn work_area() -> Option<WorkArea> {
             return None;
         }
         let r = info.rcWork;
+        let s = info.rcMonitor;
         Some(WorkArea {
             edges: [r.left, r.top, r.right, r.bottom],
+            screen: [s.left, s.top, s.right, s.bottom],
             dpi: GetDpiForSystem().max(96),
         })
     }
@@ -103,14 +113,17 @@ impl ClockMonitor {
         }
     }
 
-    pub fn work_area(&mut self, zoom: f32) -> Option<egui::Rect> {
+    pub fn bounds(&mut self, zoom: f32) -> Option<(egui::Rect, egui::Rect)> {
         for update in self.updates.try_iter() {
             self.current = update;
         }
         self.current.map(|area| {
             let scale = area.dpi as f32 / 96.0 * zoom;
-            let [l, t, r, b] = area.edges.map(|v| v as f32 / scale);
-            egui::Rect::from_min_max(egui::pos2(l, t), egui::pos2(r, b))
+            let rect = |edges: [i32; 4]| {
+                let [l, t, r, b] = edges.map(|v| v as f32 / scale);
+                egui::Rect::from_min_max(egui::pos2(l, t), egui::pos2(r, b))
+            };
+            (rect(area.edges), rect(area.screen))
         })
     }
 }

@@ -10,7 +10,11 @@ use std::time::Instant;
 
 const GAP: f32 = 8.0;
 
-pub fn show(app: &mut App, ctx: &egui::Context, work: egui::Rect) {
+fn fit(position: egui::Pos2, size: egui::Vec2, bounds: egui::Rect) -> egui::Pos2 {
+    position.clamp(bounds.min, (bounds.max - size).max(bounds.min))
+}
+
+pub fn show(app: &mut App, ctx: &egui::Context, work: egui::Rect, screen: egui::Rect) {
     let p = theme::palette(ctx);
     let color = theme::ink(ctx, dashboard::reading_color(app));
     let now = Utc::now();
@@ -43,8 +47,15 @@ pub fn show(app: &mut App, ctx: &egui::Context, work: egui::Rect) {
             .size()
             .x
     });
-    let size = egui::vec2(115.0_f32.max(caption_width.ceil() + 12.0), 50.0);
-    let position = (work.right_bottom() - size - egui::vec2(GAP, GAP)).max(work.min);
+    let size = egui::vec2(115.0_f32.max(caption_width.ceil() + 12.0), 44.0);
+    let position = fit(
+        app.config.clock_widget_position.map_or_else(
+            || (work.right_bottom() - size - egui::vec2(GAP, GAP)).max(work.min),
+            egui::Pos2::from,
+        ),
+        size,
+        screen,
+    );
     let id = egui::ViewportId::from_hash_of("clock_widget");
     let title = format!("Easy Glucose · {}", Text::ClockWidget.get());
     let builder = egui::ViewportBuilder::default()
@@ -95,8 +106,12 @@ pub fn show(app: &mut App, ctx: &egui::Context, work: egui::Rect) {
                     p.muted,
                 );
                 let response = ui
-                    .interact(rect, ui.id().with("open_graph"), egui::Sense::click())
-                    .on_hover_cursor(egui::CursorIcon::PointingHand);
+                    .interact(
+                        rect,
+                        ui.id().with("open_graph"),
+                        egui::Sense::click_and_drag(),
+                    )
+                    .on_hover_cursor(egui::CursorIcon::Grab);
                 response.widget_info(|| {
                     egui::WidgetInfo::labeled(
                         egui::WidgetType::Button,
@@ -108,12 +123,29 @@ pub fn show(app: &mut App, ctx: &egui::Context, work: egui::Rect) {
                         ),
                     )
                 });
+                if response.dragged_by(egui::PointerButton::Primary)
+                    && let Some(press) = ctx.input(|i| i.pointer.press_origin())
+                    && let Some(cursor) =
+                        crate::platform::clock::cursor_position(ctx.pixels_per_point())
+                {
+                    let next = fit(cursor - press.to_vec2(), size, screen);
+                    if next != position {
+                        app.config.clock_widget_position = Some(next.into());
+                        app.mark_config();
+                    }
+                }
                 if response.clicked() {
-                    let graph = egui::pos2(
-                        work.right() - GAP - popover::SIZE.x,
-                        position.y - GAP - popover::SIZE.y,
-                    )
-                    .max(work.min);
+                    let above = position.y - GAP - popover::SIZE.y;
+                    let y = if above >= work.top() {
+                        above
+                    } else {
+                        position.y + size.y + GAP
+                    };
+                    let graph = fit(
+                        egui::pos2(position.x + size.x - popover::SIZE.x, y),
+                        popover::SIZE,
+                        work,
+                    );
                     app.popover.toggle(graph, Instant::now());
                     ctx.request_repaint_of(egui::ViewportId::ROOT);
                 }

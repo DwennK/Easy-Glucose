@@ -617,8 +617,8 @@ impl eframe::App for App {
                 let monitor = self.clock_monitor.get_or_insert_with(|| {
                     crate::platform::clock::ClockMonitor::start(ctx.clone())
                 });
-                if let Some(work) = monitor.work_area(ctx.zoom_factor()) {
-                    ui::clock::show(self, ctx, work);
+                if let Some((work, screen)) = monitor.bounds(ctx.zoom_factor()) {
+                    ui::clock::show(self, ctx, work, screen);
                 } else {
                     self.popover.close(Instant::now());
                 }
