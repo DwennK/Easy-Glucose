@@ -8,6 +8,11 @@ pub mod theme;
 pub mod widget;
 use eframe::egui::{self, RichText};
 
+pub fn escape_outside_popup(ctx: &egui::Context) -> bool {
+    !egui::Popup::is_any_open(ctx)
+        && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
+}
+
 pub fn centered_column(ui: &mut egui::Ui, max_width: f32, content: impl FnOnce(&mut egui::Ui)) {
     let width = ui.available_width().min(max_width);
     ui.vertical_centered(|ui| {
@@ -300,4 +305,45 @@ pub fn group<R>(ui: &mut egui::Ui, title: &str, content: impl FnOnce(&mut egui::
             content(ui)
         })
         .inner
+}
+
+#[cfg(test)]
+mod keyboard_tests {
+    use super::*;
+
+    #[test]
+    fn escape_closes_the_popup_before_the_parent_view() {
+        let ctx = egui::Context::default();
+        let popup = egui::Id::new("period_menu");
+        let escape = egui::Event::Key {
+            key: egui::Key::Escape,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let input = egui::RawInput {
+            events: vec![escape.clone()],
+            ..Default::default()
+        };
+        let _ = ctx.run(input, |ctx| {
+            egui::Popup::open_id(ctx, popup);
+            assert!(!escape_outside_popup(ctx));
+            egui::CentralPanel::default().show(ctx, |ui| {
+                egui::Popup::menu(&ui.button("Period"))
+                    .id(popup)
+                    .show(|ui| ui.label("3 h"));
+            });
+            assert!(!egui::Popup::is_id_open(ctx, popup));
+        });
+        let _ = ctx.run(
+            egui::RawInput {
+                events: vec![escape],
+                ..Default::default()
+            },
+            |ctx| {
+                assert!(escape_outside_popup(ctx));
+            },
+        );
+    }
 }

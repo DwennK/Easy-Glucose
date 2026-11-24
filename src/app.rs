@@ -447,7 +447,7 @@ impl eframe::App for App {
             self.config.widget_open = !self.config.widget_open;
             self.mark_config();
         }
-        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) && !self.account_open {
+        if self.page == Page::Settings && !self.account_open && ui::escape_outside_popup(ctx) {
             self.page = Page::Dashboard;
         }
         if self.first_frame {

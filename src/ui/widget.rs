@@ -8,7 +8,7 @@ use crate::{
 use eframe::egui::{self, RichText};
 
 pub fn show(app: &mut App, ctx: &egui::Context) {
-    if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+    if ui::escape_outside_popup(ctx) {
         app.config.widget_open = false;
         app.mark_config();
     }
