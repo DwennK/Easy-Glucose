@@ -74,21 +74,12 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui) {
         app.config.widget_open = !app.config.widget_open;
         app.mark_config();
     }
-    let enabled = !matches!(
-        app.snapshot.state,
-        State::Disconnected
-            | State::Syncing
-            | State::Connecting
-            | State::InvalidCredentials
-            | State::ActionRequired
-            | State::SelectingPatient
-    ) && app.last_refresh.elapsed().as_secs() >= 30;
     let refresh = ui::tool_icon(ui, egui::include_image!("../../assets/refresh.svg"));
     if ui::tool_button(
         ui,
         egui::Button::image(refresh),
         Text::Refresh.get(),
-        enabled,
+        app.can_refresh(),
     )
     .clicked()
     {

@@ -467,6 +467,7 @@ async fn run(
             due = rate.cooldown;
             snapshot.error = Some(Text::RefreshLimit.english().into());
             snapshot.state = State::Offline;
+            snapshot.next_sync = Some(Utc::now() + due.saturating_duration_since(Instant::now()));
             emit(&events, &ctx, Event::Data(snapshot.clone()));
             continue;
         }
@@ -474,7 +475,7 @@ async fn run(
             && last.elapsed() < Duration::from_secs(30)
         {
             due = last + Duration::from_secs(30);
-            snapshot.next_sync = Some(Utc::now() + chrono::Duration::seconds(30));
+            snapshot.next_sync = Some(Utc::now() + due.saturating_duration_since(Instant::now()));
             emit(&events, &ctx, Event::Data(snapshot.clone()));
             continue;
         }

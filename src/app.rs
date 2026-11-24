@@ -162,8 +162,14 @@ impl App {
             self.mark_config();
         }
     }
+    pub fn can_refresh(&self) -> bool {
+        matches!(
+            self.snapshot.state,
+            State::Connected | State::Empty | State::Offline | State::Simulation
+        ) && self.last_refresh.elapsed() >= Duration::from_secs(30)
+    }
     pub fn refresh(&mut self) {
-        if self.last_refresh.elapsed() >= Duration::from_secs(30) {
+        if self.can_refresh() {
             self.last_refresh = Instant::now();
             self.send(Command::Refresh);
         }
