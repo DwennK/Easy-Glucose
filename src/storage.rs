@@ -55,6 +55,7 @@ pub struct Config {
     pub widget_position: Option<[f32; 2]>,
     pub widget_open: bool,
     pub clock_widget: bool,
+    pub clock_widget_position: Option<[f32; 2]>,
     pub always_on_top: bool,
     pub start_minimized: bool,
     pub close_to_tray: bool,
@@ -80,6 +81,7 @@ impl Default for Config {
             widget_position: None,
             widget_open: false,
             clock_widget: false,
+            clock_widget_position: None,
             always_on_top: true,
             start_minimized: false,
             close_to_tray: true,
@@ -105,11 +107,10 @@ impl Config {
         if !Self::HISTORY_PERIODS.contains(&self.period_hours) {
             self.period_hours = if self.period_hours == 1 { 3 } else { 6 };
         }
-        if self
-            .widget_position
-            .is_some_and(|p| !p.iter().all(|v| v.is_finite() && v.abs() < 50000.0))
-        {
-            self.widget_position = None;
+        for position in [&mut self.widget_position, &mut self.clock_widget_position] {
+            if position.is_some_and(|p| !p.iter().all(|v| v.is_finite() && v.abs() < 50000.0)) {
+                *position = None;
+            }
         }
     }
 }
