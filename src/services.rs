@@ -77,6 +77,18 @@ impl Snapshot {
         }
         crate::core::recent_delta(&self.readings)
     }
+
+    // At a threshold as short as the provider's sampling interval, check the
+    // result of the scheduled poll before declaring its sample missing.
+    fn signal_loss_poll_time(&self, minutes: u16) -> Option<DateTime<Utc>> {
+        if u64::from(minutes) * 60 <= self.provider.interval()
+            && matches!(self.state, State::Connected | State::Empty | State::Syncing)
+        {
+            self.last_sync
+        } else {
+            None
+        }
+    }
 }
 impl Default for Snapshot {
     fn default() -> Self {
@@ -227,7 +239,8 @@ async fn run(
             && !demo
             && (!snapshot.state.needs_account() || snapshot.last_sync.is_some())
             && config.alerts.rules[Kind::SignalLoss as usize].enabled;
-        if watch_gap && monitor.missing(Utc::now(), &config.alerts) {
+        let poll_time = snapshot.signal_loss_poll_time(config.alerts.minutes);
+        if watch_gap && monitor.missing(poll_time.unwrap_or_else(Utc::now), &config.alerts) {
             let alerts = vec![Kind::SignalLoss];
             emit(
                 &events,
@@ -241,7 +254,7 @@ async fn run(
         }
         let gap_due = monitor
             .missing_deadline(&config.alerts)
-            .filter(|_| watch_gap);
+            .filter(|_| watch_gap && poll_time.is_none());
         let wake = gap_due
             .map(|time| Instant::now() + (time - Utc::now()).to_std().unwrap_or_default())
             .unwrap_or(due);
@@ -509,7 +522,7 @@ async fn run(
                 snapshot.error = None;
                 let now = Utc::now();
                 snapshot.last_sync = Some(now);
-                let kinds = monitor.reading(&readings, now, &config.alerts);
+                let kinds = monitor.reading_from(provider, &readings, now, &config.alerts);
                 if !kinds.is_empty() {
                     emit(
                         &events,
@@ -524,19 +537,17 @@ async fn run(
                 }
                 let credentials = c.credentials();
                 if persist_login {
-                    match vault.save(&credentials) {
-                        Ok(()) => {
-                            persist_login = false;
-                            // Only restore history after the source confirms the account/patient.
-                            match store.load_source_cache(&credentials, config.history_days, false)
-                            {
-                                Ok(mut previous) => {
-                                    previous.append(&mut snapshot.readings);
-                                    snapshot.readings = previous;
-                                }
-                                Err(e) => emit(&events, &ctx, Event::Notice(e)),
-                            }
-                        }
+                    // Libre resolves the patient during fetch. Read the matching
+                    // cache only after authentication confirms the final identity.
+                    let saved = store
+                        .load_source_cache(&credentials, config.history_days, false)
+                        .and_then(|mut cached| {
+                            cached.append(&mut snapshot.readings);
+                            snapshot.readings = cached;
+                            vault.save(&credentials)
+                        });
+                    match saved {
+                        Ok(()) => persist_login = false,
                         Err(e) => emit(&events, &ctx, Event::Notice(e)),
                     }
                 }
@@ -635,6 +646,62 @@ mod tests {
         assert_eq!(backoff(99, &Error::Network), 900);
         assert_eq!(backoff(0, &Error::RateLimited), 1800);
     }
+    #[test]
+    fn dexcom_confirms_a_five_minute_gap_at_the_next_poll() {
+        use crate::alerts::{Kind, Monitor, Settings};
+        use crate::core::Trend;
+        let now = Utc::now();
+        let mut settings = Settings {
+            minutes: 5,
+            ..Settings::default()
+        };
+        settings.rules[Kind::SignalLoss as usize].enabled = true;
+        let mut monitor = Monitor::default();
+        let mut sample = Reading {
+            mgdl: 105,
+            measured_at: now,
+            trend: Trend::Flat,
+            limit: None,
+        };
+        let mut snapshot = Snapshot {
+            provider: Provider::Dexcom,
+            state: State::Connected,
+            last_sync: Some(now + chrono::Duration::minutes(1)),
+            ..Snapshot::default()
+        };
+        monitor.reading(
+            std::slice::from_ref(&sample),
+            snapshot.last_sync.unwrap(),
+            &settings,
+        );
+        let deadline = monitor.missing_deadline(&settings).unwrap();
+        let check = |snapshot: &Snapshot, monitor: &mut Monitor, time| {
+            monitor.missing(
+                snapshot
+                    .signal_loss_poll_time(settings.minutes)
+                    .unwrap_or(time),
+                &settings,
+            )
+        };
+        assert!(!check(&snapshot, &mut monitor, deadline));
+        let poll = deadline + chrono::Duration::seconds(10);
+        snapshot.last_sync = Some(poll);
+        sample.measured_at = deadline;
+        monitor.reading(std::slice::from_ref(&sample), poll, &settings);
+        assert!(!check(&snapshot, &mut monitor, poll));
+        let missing_poll = poll + chrono::Duration::minutes(5);
+        snapshot.last_sync = Some(missing_poll);
+        monitor.reading(&[], missing_poll, &settings);
+        assert!(check(&snapshot, &mut monitor, missing_poll));
+        assert!(!check(&snapshot, &mut monitor, missing_poll));
+        assert!(snapshot.signal_loss_poll_time(20).is_none());
+        snapshot.state = State::Offline;
+        assert!(snapshot.signal_loss_poll_time(5).is_none());
+        snapshot.state = State::Connected;
+        snapshot.provider = Provider::Nightscout;
+        assert!(snapshot.signal_loss_poll_time(5).is_none());
+    }
+
     #[derive(Clone, Default)]
     struct MemoryVault(
         std::sync::Arc<std::sync::Mutex<std::collections::HashMap<Provider, Credentials>>>,
@@ -752,6 +819,64 @@ mod tests {
                 .is_empty()
         );
         assert_eq!(requests.await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn successful_reconnection_merges_only_the_authenticated_accounts_history() {
+        use crate::sources::nightscout::{Auth, Credentials as NsCredentials};
+        use storage::CredentialStore;
+
+        for same_account in [true, false] {
+            let now = Utc::now();
+            let (url, requests) = crate::sources::test_support::server(vec![(
+                200,
+                serde_json::json!([{"sgv":110, "date":now.timestamp_millis()}]),
+            )])
+            .await;
+            let credentials = |token: &str| {
+                Credentials::Nightscout(NsCredentials {
+                    url: format!("{url}/"),
+                    token: token.to_owned().into(),
+                    auth: Auth::Token,
+                })
+            };
+            let saved = credentials("saved");
+            let login = credentials(if same_account { "saved" } else { "other" });
+            let old = Reading {
+                mgdl: 95,
+                measured_at: now - chrono::Duration::days(2),
+                trend: crate::core::Trend::Flat,
+                limit: None,
+            };
+            let dir = tempfile::tempdir().unwrap();
+            let store = Store {
+                directory: dir.path().into(),
+            };
+            store
+                .save_source_cache(&saved, std::slice::from_ref(&old))
+                .unwrap();
+            let vault = MemoryVault::default();
+            vault.save(&saved).unwrap();
+            let service = Service::start_with_credentials(
+                store.clone(),
+                Config::default(),
+                egui::Context::default(),
+                Box::new(vault),
+            )
+            .unwrap();
+            service
+                .commands
+                .send(Command::Connect(1, login.clone()))
+                .unwrap();
+            let connected = snapshot(&service, 1, State::Connected).await;
+            assert_eq!(connected.readings.last().unwrap().mgdl, 110);
+            assert_eq!(connected.readings.contains(&old), same_account);
+            assert_eq!(
+                store.load_source_cache(&login, 7, false).unwrap(),
+                connected.readings
+            );
+            assert_eq!(requests.await.unwrap().len(), 1);
+        }
     }
 
     #[tokio::test]
