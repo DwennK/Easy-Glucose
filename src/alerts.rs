@@ -160,13 +160,14 @@ impl Monitor {
         now: DateTime<Utc>,
         settings: &Settings,
     ) -> Vec<Kind> {
-        self.reading_from(Provider::Dexcom, readings, now, settings)
+        self.reading_from(Provider::Dexcom, readings, None, now, settings)
     }
 
     pub(crate) fn reading_from(
         &mut self,
         provider: Provider,
         readings: &[Reading],
+        latest_known: Option<DateTime<Utc>>,
         now: DateTime<Utc>,
         settings: &Settings,
     ) -> Vec<Kind> {
@@ -177,7 +178,11 @@ impl Monitor {
         else {
             return vec![];
         };
-        if self.latest.is_some_and(|time| r.measured_at < time) {
+        if self
+            .latest
+            .max(latest_known)
+            .is_some_and(|time| r.measured_at < time)
+        {
             return vec![];
         }
         let previous = self.latest.replace(r.measured_at);
@@ -261,6 +266,39 @@ mod tests {
         s
     }
     #[test]
+    fn older_live_readings_cannot_raise_an_alert_over_newer_cached_data() {
+        let now = Utc::now();
+        let older = Reading {
+            mgdl: 60,
+            trend: Trend::Flat,
+            measured_at: now - chrono::Duration::minutes(4),
+            limit: None,
+        };
+        let provider = Provider::Nightscout;
+        let settings = all_enabled();
+        let mut monitor = Monitor::default();
+        assert!(
+            monitor
+                .reading_from(
+                    provider,
+                    std::slice::from_ref(&older),
+                    Some(now),
+                    now,
+                    &settings
+                )
+                .is_empty()
+        );
+        assert!(monitor.missing_deadline(&settings).is_none());
+        let correction = Reading {
+            measured_at: now,
+            ..older
+        };
+        assert_eq!(
+            monitor.reading_from(provider, &[correction], Some(now), now, &settings),
+            [Kind::Low]
+        );
+    }
+    #[test]
     fn only_fresh_episodes_alert_with_urgent_priority_and_both_trends() {
         let now = Utc::now();
         let settings = all_enabled();
@@ -339,7 +377,7 @@ mod tests {
             let mut monitor = Monitor::default();
             let expected: Vec<_> = libre_alert.into_iter().collect();
             assert_eq!(
-                monitor.reading_from(Provider::LibreLinkUp, &batch, now, &settings),
+                monitor.reading_from(Provider::LibreLinkUp, &batch, None, now, &settings),
                 expected
             );
             if libre_alert.is_some() {
@@ -350,14 +388,20 @@ mod tests {
                 let later = next.measured_at;
                 assert!(
                     monitor
-                        .reading_from(Provider::LibreLinkUp, &[historical, next], later, &settings)
+                        .reading_from(
+                            Provider::LibreLinkUp,
+                            &[historical, next],
+                            None,
+                            later,
+                            &settings
+                        )
                         .is_empty()
                 );
             }
             for provider in [Provider::Dexcom, Provider::Nightscout] {
                 assert!(
                     Monitor::default()
-                        .reading_from(provider, &batch, now, &settings)
+                        .reading_from(provider, &batch, None, now, &settings)
                         .is_empty()
                 );
             }

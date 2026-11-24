@@ -528,19 +528,6 @@ async fn run(
                 snapshot.error = None;
                 let now = Utc::now();
                 snapshot.last_sync = Some(now);
-                let kinds = monitor.reading_from(provider, &readings, now, &config.alerts);
-                if !kinds.is_empty() {
-                    emit(
-                        &events,
-                        &ctx,
-                        Event::Alert(snapshot.generation, kinds.clone()),
-                    );
-                    let rules = kinds
-                        .iter()
-                        .map(|&kind| config.alerts.rules[kind as usize].clone())
-                        .collect();
-                    play(&mut playback, kinds, rules);
-                }
                 let credentials = c.credentials();
                 if persist_login || retry_cache_read.is_some() {
                     let legacy = retry_cache_read.unwrap_or(false);
@@ -561,6 +548,21 @@ async fn run(
                         Ok(()) => persist_login = false,
                         Err(e) => emit(&events, &ctx, Event::Notice(e)),
                     }
+                }
+                let latest_known = snapshot.readings.iter().map(|r| r.measured_at).max();
+                let kinds =
+                    monitor.reading_from(provider, &readings, latest_known, now, &config.alerts);
+                if !kinds.is_empty() {
+                    emit(
+                        &events,
+                        &ctx,
+                        Event::Alert(snapshot.generation, kinds.clone()),
+                    );
+                    let rules = kinds
+                        .iter()
+                        .map(|&kind| config.alerts.rules[kind as usize].clone())
+                        .collect();
+                    play(&mut playback, kinds, rules);
                 }
                 merge_readings(&mut snapshot.readings, readings, now, config.history_days);
                 if !persist_login
