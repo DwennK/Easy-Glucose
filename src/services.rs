@@ -243,6 +243,7 @@ async fn run(
     let mut provider = config.provider;
     let mut rate_limits = std::collections::HashMap::<Provider, RateLimit>::new();
     let mut persist_login = false;
+    let mut legacy_history = false;
     // A failed restore must retry the same cache (including legacy Dexcom history)
     // before any live or retention write can replace it.
     let mut retry_cache_read = None;
@@ -294,6 +295,7 @@ async fn run(
             break;
         };
         if command.generation().is_some() {
+            legacy_history = false;
             retry_cache_read = None;
             monitor = crate::alerts::Monitor::default();
             playback.cancel();
@@ -421,7 +423,13 @@ async fn run(
                     .and_then(|()| vault.load(provider))
                 {
                     Ok(Some((credentials, legacy))) => {
+                        if let Err(e) =
+                            store.prune_source_cache(&credentials, config.history_days, legacy)
+                        {
+                            emit(&events, &ctx, Event::Notice(e));
+                        }
                         persist_login = legacy;
+                        legacy_history = legacy;
                         match store.load_source_cache(&credentials, config.history_days, legacy) {
                             Ok(h) => snapshot.readings = h,
                             Err(e) => {
@@ -618,6 +626,23 @@ async fn run(
             }
             Err(error) => {
                 tracing::warn!("source_sync_failed");
+                let now = Utc::now();
+                let cutoff = now - chrono::Duration::days(i64::from(config.history_days));
+                if snapshot
+                    .readings
+                    .first()
+                    .is_some_and(|r| r.measured_at < cutoff)
+                {
+                    if let Err(e) = store.prune_source_cache(
+                        &c.credentials(),
+                        config.history_days,
+                        legacy_history,
+                    ) {
+                        emit(&events, &ctx, Event::Notice(e));
+                    } else {
+                        snapshot.readings.retain(|r| r.measured_at >= cutoff);
+                    }
+                }
                 if error == Error::SelectPatient {
                     snapshot.readings.clear();
                 }
@@ -864,6 +889,62 @@ mod tests {
                 .load_source_cache(&credentials, 7, false)
                 .unwrap()
                 .is_empty()
+        );
+        assert_eq!(requests.await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn offline_restore_expires_disk_history_before_a_successful_sync() {
+        use storage::CredentialStore;
+        let (url, requests) =
+            crate::sources::test_support::server(vec![(503, serde_json::json!({}))]).await;
+        let credentials = Credentials::Nightscout(crate::sources::nightscout::Credentials {
+            url: format!("{url}/"),
+            token: Default::default(),
+            auth: Default::default(),
+        });
+        let now = Utc::now();
+        let fresh = Reading {
+            mgdl: 108,
+            measured_at: now,
+            trend: crate::core::Trend::Flat,
+            limit: None,
+        };
+        let expired = Reading {
+            measured_at: now - chrono::Duration::days(8),
+            ..fresh.clone()
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store {
+            directory: dir.path().into(),
+        };
+        store
+            .save_source_cache(&credentials, &[expired, fresh.clone()])
+            .unwrap();
+        let vault = MemoryVault::default();
+        vault.save(&credentials).unwrap();
+        let service = Service::start_with_credentials(
+            store.clone(),
+            Config::default(),
+            egui::Context::default(),
+            Box::new(vault),
+        )
+        .unwrap();
+        service
+            .commands
+            .send(Command::Restore(1, Provider::Nightscout))
+            .unwrap();
+        assert_eq!(
+            snapshot(&service, 1, State::Offline)
+                .await
+                .readings
+                .as_slice(),
+            std::slice::from_ref(&fresh)
+        );
+        drop(service);
+        assert_eq!(
+            store.load_source_cache(&credentials, 30, false).unwrap(),
+            [fresh]
         );
         assert_eq!(requests.await.unwrap().len(), 1);
     }

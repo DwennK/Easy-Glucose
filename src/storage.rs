@@ -185,6 +185,35 @@ impl Store {
         merge_readings(&mut readings, vec![], Utc::now(), days);
         Ok(readings)
     }
+    /// Expire on disk even if the source stays offline. Only touch the matching account.
+    pub(crate) fn prune_source_cache(
+        &self,
+        credentials: &Credentials,
+        days: u8,
+        legacy: bool,
+    ) -> Result<(), String> {
+        let cutoff = Utc::now() - chrono::Duration::days(i64::from(days.clamp(1, 30)));
+        let prune = |history: &mut Vec<Reading>| {
+            let before = history.len();
+            history.retain(|r| r.measured_at >= cutoff);
+            history.len() != before
+        };
+        let name = format!("readings-{}.json", credentials.provider().key());
+        if let Some(mut cache) = self.read::<SourceCache>(&name)?
+            && cache.identity == credentials.cache_identity()
+            && prune(&mut cache.readings)
+        {
+            atomic_json(&self.directory.join(name), &cache)?;
+        }
+        if legacy
+            && credentials.provider() == Provider::Dexcom
+            && let Some(mut readings) = self.read::<Vec<Reading>>("readings.json")?
+            && prune(&mut readings)
+        {
+            self.save_cache(&readings)?;
+        }
+        Ok(())
+    }
     pub fn save_source_cache(
         &self,
         credentials: &Credentials,
