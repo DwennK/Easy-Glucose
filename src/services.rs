@@ -118,6 +118,34 @@ pub enum Command {
     Clear,
     Shutdown,
 }
+impl Command {
+    fn generation(&self) -> Option<u64> {
+        match self {
+            Self::Connect(g, _)
+            | Self::Disconnect(g, _)
+            | Self::Demo(g)
+            | Self::Restore(g, _)
+            | Self::SelectPatient(g, _) => Some(*g),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Commands {
+    queue: channel::UnboundedSender<Command>,
+    active: tokio::sync::watch::Sender<Option<u64>>,
+}
+impl Commands {
+    pub fn send(&self, command: Command) -> Result<(), channel::error::SendError<Command>> {
+        let generation = command.generation();
+        if generation.is_some() || matches!(command, Command::Shutdown) {
+            self.active.send_replace(generation);
+        }
+        self.queue.send(command)
+    }
+}
+
 pub enum Event {
     Data(Snapshot),
     Alert(u64, Vec<crate::alerts::Kind>),
@@ -125,10 +153,9 @@ pub enum Event {
     Autostart(bool),
 }
 pub struct Service {
-    pub commands: channel::UnboundedSender<Command>,
+    pub commands: Commands,
     pub events: mpsc::Receiver<Event>,
     join: Option<std::thread::JoinHandle<()>>,
-    cancel: tokio::sync::watch::Sender<bool>,
 }
 impl Service {
     pub fn start(store: Store, config: Config, ctx: egui::Context) -> Result<Self, String> {
@@ -141,7 +168,7 @@ impl Service {
         vault: Box<dyn storage::CredentialStore>,
     ) -> Result<Self, String> {
         let (tx, rx) = channel::unbounded_channel();
-        let (cancel, cancelled) = tokio::sync::watch::channel(false);
+        let (active, generation) = tokio::sync::watch::channel(Some(0));
         let (events, receiver) = mpsc::channel();
         let join = std::thread::Builder::new()
             .name("easy-glucose-sync".into())
@@ -150,7 +177,7 @@ impl Service {
                     .enable_all()
                     .build();
                 match runtime {
-                    Ok(rt) => rt.block_on(run(store, config, rx, events, ctx, cancelled, vault)),
+                    Ok(rt) => rt.block_on(run(store, config, rx, events, ctx, generation, vault)),
                     Err(_) => {
                         let _ = events.send(Event::Notice(Text::ServiceStart.english().into()));
                         ctx.request_repaint_of(egui::ViewportId::ROOT);
@@ -159,16 +186,14 @@ impl Service {
             })
             .map_err(|_| Text::CannotStartSync.english())?;
         Ok(Self {
-            commands: tx,
+            commands: Commands { queue: tx, active },
             events: receiver,
             join: Some(join),
-            cancel,
         })
     }
 }
 impl Drop for Service {
     fn drop(&mut self) {
-        let _ = self.cancel.send(true);
         let _ = self.commands.send(Command::Shutdown);
         if let Some(join) = self.join.take() {
             let _ = join.join();
@@ -208,7 +233,7 @@ async fn run(
     mut commands: channel::UnboundedReceiver<Command>,
     events: mpsc::Sender<Event>,
     ctx: egui::Context,
-    mut cancelled: tokio::sync::watch::Receiver<bool>,
+    mut generation: tokio::sync::watch::Receiver<Option<u64>>,
     vault: Box<dyn storage::CredentialStore>,
 ) {
     let mut snapshot = Snapshot::default();
@@ -235,7 +260,8 @@ async fn run(
 
     loop {
         use crate::alerts::Kind;
-        let watch_gap = client.is_some()
+        let watch_gap = *generation.borrow() == Some(snapshot.generation)
+            && client.is_some()
             && !demo
             && (!snapshot.state.needs_account() || snapshot.last_sync.is_some())
             && config.alerts.rules[Kind::SignalLoss as usize].enabled;
@@ -267,14 +293,7 @@ async fn run(
         let Some(command) = command else {
             break;
         };
-        if matches!(
-            command,
-            Command::Demo(_)
-                | Command::Disconnect(..)
-                | Command::Restore(..)
-                | Command::Connect(..)
-                | Command::SelectPatient(..)
-        ) {
+        if command.generation().is_some() {
             retry_cache_read = None;
             monitor = crate::alerts::Monitor::default();
             playback.cancel();
@@ -510,14 +529,15 @@ async fn run(
         let Some(c) = client.as_mut() else {
             continue;
         };
-        rate.last_attempt = Some(Instant::now());
-        if *cancelled.borrow() {
+        if *generation.borrow_and_update() != Some(snapshot.generation) {
             continue;
         }
+        rate.last_attempt = Some(Instant::now());
         monitor.start(Utc::now());
         let result = tokio::select! {
+            biased;
+            _ = generation.changed() => continue,
             result = c.fetch() => result,
-            _ = cancelled.changed() => continue,
         };
         snapshot.state = State::after_result(&result);
         snapshot.patients = c.patients();
@@ -552,7 +572,7 @@ async fn run(
                 let latest_known = snapshot.readings.iter().map(|r| r.measured_at).max();
                 let kinds =
                     monitor.reading_from(provider, &readings, latest_known, now, &config.alerts);
-                if !kinds.is_empty() {
+                if !kinds.is_empty() && *generation.borrow() == Some(snapshot.generation) {
                     emit(
                         &events,
                         &ctx,
@@ -957,6 +977,70 @@ mod tests {
             );
             assert_eq!(requests.await.unwrap().len(), 1);
         }
+    }
+
+    #[tokio::test]
+    async fn switching_source_cancels_a_pending_request_before_it_can_dispatch() {
+        use storage::CredentialStore;
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/", listener.local_addr().unwrap());
+        let credentials = Credentials::Nightscout(crate::sources::nightscout::Credentials {
+            url,
+            token: Default::default(),
+            auth: Default::default(),
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store {
+            directory: dir.path().into(),
+        };
+        let vault = MemoryVault::default();
+        let mut config = Config::default();
+        config.alerts.rules[crate::alerts::Kind::Low as usize].enabled = true;
+        let service = Service::start_with_credentials(
+            store.clone(),
+            config.clone(),
+            egui::Context::default(),
+            Box::new(vault.clone()),
+        )
+        .unwrap();
+        service
+            .commands
+            .send(Command::Connect(1, credentials.clone()))
+            .unwrap();
+        let (mut socket, _) = tokio::time::timeout(Duration::from_secs(5), listener.accept())
+            .await
+            .unwrap()
+            .unwrap();
+        socket.read_u8().await.unwrap();
+        config.history_days = 14;
+        service.commands.send(Command::Save(config)).unwrap();
+        service
+            .commands
+            .send(Command::Restore(2, Provider::Dexcom))
+            .unwrap();
+        // The switch and the queued save must finish while the old response is withheld.
+        let switched = snapshot(&service, 2, State::Disconnected).await;
+        assert_eq!(switched.provider, Provider::Dexcom);
+        assert_eq!(store.load_config().unwrap().history_days, 14);
+        let body = serde_json::json!([{"sgv":60,"date":Utc::now().timestamp_millis()}]).to_string();
+        let _ = socket
+            .write_all(
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{body}",
+                    body.len()
+                )
+                .as_bytes(),
+            )
+            .await;
+        drop(service);
+        assert!(vault.load(Provider::Nightscout).unwrap().is_none());
+        assert!(
+            store
+                .load_source_cache(&credentials, 7, false)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[tokio::test]
