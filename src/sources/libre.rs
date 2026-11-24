@@ -274,13 +274,14 @@ pub fn parse_graph(graph: &Value) -> Result<Vec<Reading>, Error> {
     if history.len() > 2000 {
         return Err(Error::Protocol);
     }
-    let mut readings: Vec<_> = history
-        .iter()
-        .map(parse_measurement)
-        .collect::<Result<_, _>>()?;
     let current = &graph["connection"]["glucoseMeasurement"];
-    if !current.is_null() {
-        readings.push(parse_measurement(current)?);
+    let readings: Vec<_> = history
+        .iter()
+        .chain(Some(current).filter(|value| !value.is_null()))
+        .filter_map(|value| parse_measurement(value).ok())
+        .collect();
+    if readings.is_empty() && (!history.is_empty() || !current.is_null()) {
+        return Err(Error::Protocol);
     }
     // Current wins when it corrects an historical point at the same timestamp.
     let mut merged = Vec::new();
@@ -309,6 +310,22 @@ mod tests {
     }
     fn graph(id: &str) -> Value {
         json!({"status":0,"data":{"connection":{"patientId":id,"glucoseMeasurement":measurement(123,3)},"graphData":[]}})
+    }
+    #[test]
+    fn mixed_graph_keeps_valid_current_or_historical_measurements() {
+        let valid = measurement(123, 3);
+        let invalid = measurement(0, 3);
+        for (history, current) in [(&invalid, &valid), (&valid, &invalid)] {
+            let graph = json!({"graphData":[history],"connection":{"glucoseMeasurement":current}});
+            let readings = parse_graph(&graph).unwrap();
+            assert_eq!(readings.len(), 1);
+            assert_eq!(readings[0].mgdl, 123);
+        }
+        assert_eq!(
+            parse_graph(&json!({"graphData":[invalid]})),
+            Err(Error::Protocol)
+        );
+        assert_eq!(parse_graph(&json!({"graphData":[]})), Ok(vec![]));
     }
     #[test]
     fn unnamed_selection_keeps_its_number_in_every_language() {

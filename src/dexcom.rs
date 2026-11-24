@@ -173,20 +173,18 @@ pub fn parse_readings(value: Value) -> Result<Vec<Reading>, Error> {
     let now = Utc::now();
     let mut readings: Vec<Reading> = array
         .iter()
-        .map(|v| {
+        .filter_map(|v| {
             let mgdl = v
                 .get("Value")
                 .and_then(Value::as_u64)
-                .and_then(|v| u16::try_from(v).ok())
-                .ok_or(Error::Protocol)?;
+                .and_then(|v| u16::try_from(v).ok())?;
             let stamp = v
                 .get("WT")
                 .or_else(|| v.get("ST"))
-                .and_then(Value::as_str)
-                .ok_or(Error::Protocol)?;
+                .and_then(Value::as_str)?;
             let r = Reading {
                 mgdl,
-                measured_at: parse_timestamp(stamp).ok_or(Error::Protocol)?,
+                measured_at: parse_timestamp(stamp)?,
                 trend: Trend::parse(&v["Trend"]),
                 limit: match mgdl {
                     39 => Some(Limit::Below(40)),
@@ -195,11 +193,14 @@ pub fn parse_readings(value: Value) -> Result<Vec<Reading>, Error> {
                 },
             };
             if !(39..=401).contains(&mgdl) || !r.valid(now) {
-                return Err(Error::Protocol);
+                return None;
             }
-            Ok(r)
+            Some(r)
         })
-        .collect::<Result<_, _>>()?;
+        .collect();
+    if readings.is_empty() && !array.is_empty() {
+        return Err(Error::Protocol);
+    }
     readings.sort_by_key(|r| r.measured_at);
     readings.dedup_by_key(|r| r.measured_at);
     Ok(readings)
@@ -217,6 +218,14 @@ mod tests {
         assert!(parse_readings(json!([{"Value":100,"Trend":4}])).is_err());
         assert!(parse_readings(json!(null)).is_err());
         assert_eq!(parse_readings(json!([])), Ok(vec![]));
+    }
+    #[test]
+    fn mixed_batch_keeps_valid_measurements() {
+        let valid = json!({"Value":123,"WT":"Date(1691455258000)"});
+        let invalid = json!({"Value":0,"WT":"Date(1691454958000)"});
+        let readings = parse_readings(json!([invalid, valid])).unwrap();
+        assert_eq!(readings.len(), 1);
+        assert_eq!(readings[0].mgdl, 123);
     }
     #[test]
     fn error_mapping() {
