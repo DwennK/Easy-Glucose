@@ -190,6 +190,10 @@ impl Store {
         credentials: &Credentials,
         readings: &[Reading],
     ) -> Result<(), String> {
+        // The provider file still belongs to the last selected Libre patient.
+        if matches!(credentials, Credentials::LibreLinkUp(c) if c.patient_id.is_none()) {
+            return Ok(());
+        }
         let file = format!("readings-{}.json", credentials.provider().key());
         atomic_json(
             &self.directory.join(file),
@@ -415,6 +419,12 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+        let mut pending = a.clone();
+        if let Credentials::LibreLinkUp(c) = &mut pending {
+            c.patient_id = None;
+        }
+        store.save_source_cache(&pending, &[]).unwrap();
+        assert_eq!(store.load_source_cache(&a, 14, false).unwrap(), readings);
         let raw = fs::read_to_string(dir.path().join("readings-librelinkup.json")).unwrap();
         for secret in ["fixture@example.invalid", "fixture-password", "person-a"] {
             assert!(!raw.contains(secret));
