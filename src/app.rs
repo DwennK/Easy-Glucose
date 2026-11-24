@@ -532,7 +532,7 @@ impl eframe::App for App {
                     ui.add_space(10.0);
                 }
                 if self.page == Page::Settings {
-                    ui::centered_column(ui, 700.0, |ui| ui::settings::header(self, ui));
+                    ui.vertical_centered(|ui| ui::settings::header(self, ui));
                     ui.add_space(12.0);
                 }
                 egui::ScrollArea::vertical()

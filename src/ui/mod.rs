@@ -152,8 +152,23 @@ pub fn segments<T: Copy + PartialEq>(
         })
         .fold(35.0_f32, f32::max)
         .ceil();
+    let width = width.min(((ui.available_width() - 4.0) / options.len() as f32).max(1.0));
+    let labels: Vec<_> = options
+        .iter()
+        .map(|(_, option)| match option {
+            Segment::Text(text) => Some(ui.fonts_mut(|fonts| {
+                fonts.layout_delayed_color((*text).into(), font.clone(), (width - 8.0).max(1.0))
+            })),
+            Segment::Window(_) => None,
+        })
+        .collect();
+    let height = labels
+        .iter()
+        .flatten()
+        .map(|galley| galley.size().y + 8.0)
+        .fold(27.0_f32, f32::max);
     let (track, group) = ui.allocate_exact_size(
-        egui::vec2(4.0 + width * options.len() as f32, 27.0),
+        egui::vec2(4.0 + width * options.len() as f32, height),
         egui::Sense::hover(),
     );
     painter.rect_filled(track, 7, p.secondary);
@@ -198,14 +213,10 @@ pub fn segments<T: Copy + PartialEq>(
             p.text
         };
         match option {
-            Segment::Text(text) => {
-                painter.text(
-                    rect.center(),
-                    egui::Align2::CENTER_CENTER,
-                    text,
-                    font.clone(),
-                    ink,
-                );
+            Segment::Text(_) => {
+                if let Some(galley) = &labels[index] {
+                    painter.galley(rect.center() - galley.size() * 0.5, galley.clone(), ink);
+                }
             }
             Segment::Window(size) => {
                 let window = egui::Rect::from_center_size(
