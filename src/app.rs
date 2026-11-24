@@ -566,9 +566,7 @@ impl eframe::App for App {
         if self.config.widget_open {
             let id = egui::ViewportId::from_hash_of("glucose_widget");
             let mut builder = egui::ViewportBuilder::default()
-                .with_title(format!("Easy Glucose · {}", Text::Widget.get()))
                 .with_movable_by_background(true)
-                .with_decorations(false)
                 .with_resizable(false)
                 .with_inner_size(self.config.widget_size.dimensions())
                 .with_always_on_top();
@@ -589,9 +587,13 @@ impl eframe::App for App {
                 );
                 self.reset_widget = false;
             }
-            ctx.show_viewport_immediate(id, builder, |ctx, _| {
-                ui::widget::show(self, ctx);
-            });
+            ui::show_floating_window(
+                ctx,
+                id,
+                format!("Easy Glucose · {}", Text::Widget.get()),
+                builder,
+                |ctx| ui::widget::show(self, ctx),
+            );
         }
         self.widget_was_open = self.config.widget_open;
         #[cfg(windows)]
@@ -615,16 +617,19 @@ impl eframe::App for App {
         if self.popover.open {
             let id = egui::ViewportId::from_hash_of("menubar_graph");
             let builder = egui::ViewportBuilder::default()
-                .with_title(format!("Easy Glucose · {}", Text::Preview.get()))
-                .with_transparent(true)
-                .with_decorations(false)
                 .with_resizable(false)
                 .with_taskbar(false)
                 .with_active(true)
                 .with_always_on_top()
                 .with_inner_size(ui::popover::SIZE)
                 .with_position(self.popover.position);
-            ctx.show_viewport_immediate(id, builder, |ctx, _| ui::popover::show(self, ctx));
+            ui::show_floating_window(
+                ctx,
+                id,
+                format!("Easy Glucose · {}", Text::Preview.get()),
+                builder,
+                |ctx| ui::popover::show(self, ctx),
+            );
         }
         if let Some(tray) = &mut self.tray {
             let title = self

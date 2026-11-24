@@ -71,7 +71,6 @@ fn work_area() -> Option<WorkArea> {
 
 pub struct ClockMonitor {
     current: Option<WorkArea>,
-    alpha_ready: bool,
     updates: Receiver<Option<WorkArea>>,
     // Dropping the sender wakes the worker immediately when the widget is disabled.
     _stop: Sender<()>,
@@ -99,61 +98,14 @@ impl ClockMonitor {
         });
         Self {
             current,
-            alpha_ready: false,
             updates,
             _stop: stop,
-        }
-    }
-
-    pub fn enable_alpha(&mut self, title: &str) {
-        use std::ptr::null_mut;
-        use windows_sys::Win32::{
-            Graphics::{
-                Dwm::*,
-                Gdi::{CreateRectRgn, DeleteObject},
-            },
-            UI::WindowsAndMessaging::{FindWindowExW, GetWindowThreadProcessId},
-        };
-        if self.alpha_ready {
-            return;
-        }
-        // Some Windows GL drivers expose an alpha buffer but glutin disables the
-        // DWM composition flag on secondary viewports. Apply it to our widget only.
-        let title: Vec<u16> = title.encode_utf16().chain([0]).collect();
-        unsafe {
-            let mut hwnd = null_mut();
-            loop {
-                hwnd = FindWindowExW(null_mut(), hwnd, std::ptr::null(), title.as_ptr());
-                if hwnd.is_null() {
-                    return;
-                }
-                let mut pid = 0;
-                GetWindowThreadProcessId(hwnd, &mut pid);
-                if pid == std::process::id() {
-                    break;
-                }
-            }
-            let region = CreateRectRgn(0, 0, -1, -1);
-            if region.is_null() {
-                return;
-            }
-            let blur = DWM_BLURBEHIND {
-                dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
-                fEnable: 1,
-                hRgnBlur: region,
-                ..Default::default()
-            };
-            self.alpha_ready = DwmEnableBlurBehindWindow(hwnd, &blur) >= 0;
-            DeleteObject(region);
         }
     }
 
     pub fn work_area(&mut self, zoom: f32) -> Option<egui::Rect> {
         for update in self.updates.try_iter() {
             self.current = update;
-            if update.is_none() {
-                self.alpha_ready = false;
-            }
         }
         self.current.map(|area| {
             let scale = area.dpi as f32 / 96.0 * zoom;

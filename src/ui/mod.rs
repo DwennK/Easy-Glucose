@@ -8,6 +8,24 @@ pub mod theme;
 pub mod widget;
 use eframe::egui::{self, RichText};
 
+pub fn show_floating_window(
+    ctx: &egui::Context,
+    id: egui::ViewportId,
+    title: String,
+    builder: egui::ViewportBuilder,
+    mut draw: impl FnMut(&egui::Context),
+) {
+    let builder = builder
+        .with_title(&title)
+        .with_transparent(true)
+        .with_decorations(false);
+    ctx.show_viewport_immediate(id, builder, |ctx, _| {
+        #[cfg(windows)]
+        crate::platform::enable_window_alpha(&title);
+        draw(ctx);
+    });
+}
+
 pub fn escape_outside_popup(ctx: &egui::Context) -> bool {
     !egui::Popup::is_any_open(ctx)
         && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))

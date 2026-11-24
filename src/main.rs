@@ -80,9 +80,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     && config.onboarding_done
                     && (background || config.start_minimized)),
             )
-            // eframe selects the shared GL alpha configuration from this initial flag.
-            // App::update makes only the root window opaque on its first frame;
-            // the menu popup still needs this alpha-capable GL configuration.
+            // AppKit needs a transparent GL config at startup. On Windows glutin
+            // already requests an 8-bit alpha channel; the floating windows opt
+            // into DWM composition without requiring WGL overlay pixel formats.
             .with_transparent(cfg!(target_os = "macos"))
             .with_fullsize_content_view(cfg!(target_os = "macos"))
             .with_titlebar_shown(!cfg!(target_os = "macos"))
