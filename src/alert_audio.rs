@@ -8,6 +8,10 @@ use std::{
     fs,
     io::{Cursor, Read, Write},
     path::{Path, PathBuf},
+    sync::{
+        Arc, Weak,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
@@ -175,61 +179,104 @@ impl Imported {
         None
     }
 }
-pub(crate) fn dispatch(
-    alerts: Vec<Kind>,
-    rules: Vec<Rule>,
-    directory: PathBuf,
-    events: std::sync::mpsc::Sender<crate::services::Event>,
-    ctx: eframe::egui::Context,
-    cancel: std::sync::Arc<std::sync::atomic::AtomicU64>,
-    ticket: u64,
-) {
-    if !alerts.is_empty() {
-        let events = events.clone();
-        let ctx = ctx.clone();
-        let sequence = cancel.clone();
+
+#[derive(Default)]
+pub(crate) struct Playback {
+    cancelled: Weak<AtomicBool>,
+    is_alert: bool,
+}
+
+impl Playback {
+    pub fn cancel(&mut self) {
+        if let Some(flag) = self.cancelled.upgrade() {
+            flag.store(true, Ordering::Relaxed);
+        }
+        self.cancelled = Weak::new();
+    }
+
+    fn begin(&mut self, is_alert: bool) -> Option<Arc<AtomicBool>> {
+        // The workers own this flag until sound and notification have finished.
+        if !is_alert && self.is_alert && self.cancelled.upgrade().is_some() {
+            return None;
+        }
+        self.cancel();
+        let flag = Arc::new(AtomicBool::new(false));
+        self.cancelled = Arc::downgrade(&flag);
+        self.is_alert = is_alert;
+        Some(flag)
+    }
+    pub fn dispatch(
+        &mut self,
+        alerts: Vec<Kind>,
+        rules: Vec<Rule>,
+        directory: PathBuf,
+        events: std::sync::mpsc::Sender<crate::services::Event>,
+        ctx: eframe::egui::Context,
+    ) {
+        let Some(cancel) = self.begin(!alerts.is_empty()) else {
+            return;
+        };
+        if !alerts.is_empty() {
+            let events = events.clone();
+            let ctx = ctx.clone();
+            let cancel = cancel.clone();
+            std::thread::spawn(move || {
+                if cancel.load(Ordering::Relaxed) {
+                    return;
+                }
+                let labels = alerts
+                    .iter()
+                    .map(|k| k.title().get())
+                    .collect::<Vec<_>>()
+                    .join(" · ");
+                let mut notification = notify_rust::Notification::new();
+                #[cfg(windows)]
+                notification.app_id("velopack.EasyGlucose");
+                if notification
+                    .summary("Easy Glucose")
+                    .body(&labels)
+                    .show()
+                    .is_err()
+                {
+                    let _ = events.send(crate::services::Event::Notice(
+                        Text::NotificationError.english().into(),
+                    ));
+                    ctx.request_repaint_of(eframe::egui::ViewportId::ROOT);
+                }
+            });
+        }
         std::thread::spawn(move || {
-            if sequence.load(std::sync::atomic::Ordering::Relaxed) != ticket {
-                return;
-            }
-            let labels = alerts
-                .iter()
-                .map(|k| k.title().get())
-                .collect::<Vec<_>>()
-                .join(" · ");
-            let mut notification = notify_rust::Notification::new();
-            #[cfg(windows)]
-            notification.app_id("velopack.EasyGlucose");
-            if notification
-                .summary("Easy Glucose")
-                .body(&labels)
-                .show()
-                .is_err()
-            {
-                let _ = events.send(crate::services::Event::Notice(
-                    Text::NotificationError.english().into(),
-                ));
-                ctx.request_repaint_of(eframe::egui::ViewportId::ROOT);
+            let cancelled = || cancel.load(Ordering::Relaxed);
+            for rule in rules {
+                if cancelled() {
+                    break;
+                }
+                if let Err(error) = play(&rule, &directory, cancelled) {
+                    let _ = events.send(crate::services::Event::Notice(error.english().into()));
+                    ctx.request_repaint_of(eframe::egui::ViewportId::ROOT);
+                }
             }
         });
     }
-    std::thread::spawn(move || {
-        let cancelled = || cancel.load(std::sync::atomic::Ordering::Relaxed) != ticket;
-        for rule in rules {
-            if cancelled() {
-                break;
-            }
-            if let Err(error) = play(&rule, &directory, cancelled) {
-                let _ = events.send(crate::services::Event::Notice(error.english().into()));
-                ctx.request_repaint_of(eframe::egui::ViewportId::ROOT);
-            }
-        }
-    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn previews_yield_to_live_alerts_until_playback_finishes() {
+        let mut playback = Playback::default();
+        let preview = playback.begin(false).unwrap();
+        let alert = playback.begin(true).unwrap();
+        assert!(preview.load(Ordering::Relaxed));
+        assert!(playback.begin(false).is_none());
+        assert!(!alert.load(Ordering::Relaxed));
+        drop(alert);
+        let next_preview = playback.begin(false).unwrap();
+        playback.cancel();
+        assert!(next_preview.load(Ordering::Relaxed));
+    }
 
     #[test]
     fn all_default_tones_decode_to_the_original_g7_samples() {

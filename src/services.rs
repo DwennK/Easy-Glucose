@@ -222,17 +222,14 @@ async fn run(
     // before any live or retention write can replace it.
     let mut retry_cache_read = None;
     let mut monitor = crate::alerts::Monitor::default();
-    let audio_sequence = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
-    let play = |kinds: Vec<crate::alerts::Kind>, rules: Vec<crate::alerts::Rule>| {
-        let ticket = audio_sequence.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-        crate::alert_audio::dispatch(
+    let mut playback = crate::alert_audio::Playback::default();
+    let play = |playback: &mut crate::alert_audio::Playback, kinds, rules| {
+        playback.dispatch(
             kinds,
             rules,
             store.directory.clone(),
             events.clone(),
             ctx.clone(),
-            audio_sequence.clone(),
-            ticket,
         );
     };
 
@@ -251,6 +248,7 @@ async fn run(
                 Event::Alert(snapshot.generation, alerts.clone()),
             );
             play(
+                &mut playback,
                 alerts,
                 vec![config.alerts.rules[Kind::SignalLoss as usize].clone()],
             );
@@ -279,15 +277,15 @@ async fn run(
         ) {
             retry_cache_read = None;
             monitor = crate::alerts::Monitor::default();
-            audio_sequence.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            playback.cancel();
         }
         match command {
             Command::Shutdown => {
-                audio_sequence.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                playback.cancel();
                 break;
             }
             Command::Preview(rule) => {
-                play(Vec::new(), vec![rule]);
+                play(&mut playback, Vec::new(), vec![rule]);
                 continue;
             }
             Command::Save(mut c) => {
@@ -541,7 +539,7 @@ async fn run(
                         .iter()
                         .map(|&kind| config.alerts.rules[kind as usize].clone())
                         .collect();
-                    play(kinds, rules);
+                    play(&mut playback, kinds, rules);
                 }
                 let credentials = c.credentials();
                 if persist_login || retry_cache_read.is_some() {
