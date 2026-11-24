@@ -513,19 +513,28 @@ async fn run(
                         .collect();
                     play(kinds, rules);
                 }
-                merge_readings(
-                    &mut snapshot.readings,
-                    readings,
-                    Utc::now(),
-                    config.history_days,
-                );
+                let credentials = c.credentials();
                 if persist_login {
-                    if let Err(e) = vault.save(&c.credentials()) {
-                        emit(&events, &ctx, Event::Notice(e));
+                    match vault.save(&credentials) {
+                        Ok(()) => {
+                            persist_login = false;
+                            // Only restore history after the source confirms the account/patient.
+                            match store.load_source_cache(&credentials, config.history_days, false)
+                            {
+                                Ok(mut previous) => {
+                                    previous.append(&mut snapshot.readings);
+                                    snapshot.readings = previous;
+                                }
+                                Err(e) => emit(&events, &ctx, Event::Notice(e)),
+                            }
+                        }
+                        Err(e) => emit(&events, &ctx, Event::Notice(e)),
                     }
-                    persist_login = false;
                 }
-                if let Err(e) = store.save_source_cache(&c.credentials(), &snapshot.readings) {
+                merge_readings(&mut snapshot.readings, readings, now, config.history_days);
+                if !persist_login
+                    && let Err(e) = store.save_source_cache(&credentials, &snapshot.readings)
+                {
                     emit(&events, &ctx, Event::Notice(e));
                 }
                 let delay = snapshot
@@ -635,19 +644,16 @@ mod tests {
         .expect("service event")
     }
     #[tokio::test]
-    async fn pruning_and_clearing_history_update_the_ui_and_preserve_sync() {
+    async fn reconnect_preserves_account_history_before_pruning_and_clearing() {
         use crate::sources::nightscout::{Auth, Credentials as NsCredentials};
         use storage::CredentialStore;
         let (url, requests) = crate::sources::test_support::server(vec![(
             200,
-            serde_json::json!([
-                {"sgv": 95, "date": (Utc::now() - chrono::Duration::days(2)).timestamp_millis()},
-                {"sgv": 105, "date": Utc::now().timestamp_millis()}
-            ]),
+            serde_json::json!([{"sgv": 105, "date": Utc::now().timestamp_millis()}]),
         )])
         .await;
         let saved = Credentials::Nightscout(NsCredentials {
-            url,
+            url: format!("{url}/"),
             token: Default::default(),
             auth: Auth::Token,
         });
@@ -655,7 +661,17 @@ mod tests {
         let store = Store {
             directory: dir.path().into(),
         };
+        let old = Reading {
+            mgdl: 95,
+            measured_at: Utc::now() - chrono::Duration::days(2),
+            trend: crate::core::Trend::Flat,
+            limit: None,
+        };
+        store
+            .save_source_cache(&saved, std::slice::from_ref(&old))
+            .unwrap();
         let vault = MemoryVault::default();
+        vault.save(&saved).unwrap();
         let service = Service::start_with_credentials(
             store.clone(),
             Config::default(),
@@ -666,6 +682,12 @@ mod tests {
         service.commands.send(Command::Connect(1, saved)).unwrap();
         let before = snapshot(&service, 1, State::Connected).await;
         assert_eq!(before.readings.len(), 2);
+        assert_eq!(before.readings[0], old);
+        let (credentials, _) = vault.load(Provider::Nightscout).unwrap().unwrap();
+        assert_eq!(
+            store.load_source_cache(&credentials, 7, false).unwrap(),
+            before.readings
+        );
         service
             .commands
             .send(Command::Save(Config {
