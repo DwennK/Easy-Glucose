@@ -500,7 +500,7 @@ async fn run(
                 snapshot.error = None;
                 let now = Utc::now();
                 snapshot.last_sync = Some(now);
-                let kinds = monitor.reading(&readings, now, &config.alerts);
+                let kinds = monitor.reading_from(provider, &readings, now, &config.alerts);
                 if !kinds.is_empty() {
                     emit(
                         &events,

@@ -1,6 +1,7 @@
 use crate::{
     core::{Reading, STALE_SECONDS, Trend},
     i18n::Text,
+    sources::Provider,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -159,6 +160,16 @@ impl Monitor {
         now: DateTime<Utc>,
         settings: &Settings,
     ) -> Vec<Kind> {
+        self.reading_from(Provider::Dexcom, readings, now, settings)
+    }
+
+    pub(crate) fn reading_from(
+        &mut self,
+        provider: Provider,
+        readings: &[Reading],
+        now: DateTime<Utc>,
+        settings: &Settings,
+    ) -> Vec<Kind> {
         let Some(r) = readings
             .iter()
             .filter(|r| r.valid(now))
@@ -184,7 +195,7 @@ impl Monitor {
                     && sample.measured_at < r.measured_at
                     && sample.valid(now)
             }) {
-                for (kind, condition) in conditions(sample, settings) {
+                for (kind, condition) in conditions(sample, provider, settings) {
                     // Libre history may omit the arrow supplied with the live sample.
                     if matches!(kind, Kind::Rise | Kind::Fall)
                         && matches!(
@@ -199,7 +210,7 @@ impl Monitor {
             }
         }
         let mut alerts = Vec::new();
-        for (kind, condition) in conditions(r, settings) {
+        for (kind, condition) in conditions(r, provider, settings) {
             if self.transition(kind, condition, settings) {
                 alerts.push(kind);
             }
@@ -221,14 +232,21 @@ impl Monitor {
     }
 }
 
-fn conditions(r: &Reading, settings: &Settings) -> [(Kind, bool); 5] {
+fn conditions(r: &Reading, provider: Provider, settings: &Settings) -> [(Kind, bool); 5] {
     let urgent = r.mgdl <= settings.urgent && settings.rules[Kind::UrgentLow as usize].enabled;
+    let libre = provider == Provider::LibreLinkUp;
     [
         (Kind::UrgentLow, urgent),
         (Kind::Low, !urgent && r.mgdl <= settings.low),
         (Kind::High, r.mgdl >= settings.high),
-        (Kind::Rise, r.trend == Trend::DoubleUp),
-        (Kind::Fall, r.trend == Trend::DoubleDown),
+        (
+            Kind::Rise,
+            r.trend == Trend::DoubleUp || (libre && r.trend == Trend::Up),
+        ),
+        (
+            Kind::Fall,
+            r.trend == Trend::DoubleDown || (libre && r.trend == Trend::Down),
+        ),
     ]
 }
 
@@ -298,6 +316,52 @@ mod tests {
                 .reading(&recovered, recovered[1].measured_at, &settings)
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn rapid_trend_rules_follow_each_sources_arrows() {
+        let now = Utc::now();
+        let settings = all_enabled();
+        for (arrow, libre_alert) in [
+            (1, Some(Kind::Fall)),
+            (2, None),
+            (3, None),
+            (4, None),
+            (5, Some(Kind::Rise)),
+            (0, None),
+        ] {
+            let batch = crate::sources::libre::parse_graph(&serde_json::json!({
+                "graphData": [], "connection": {"glucoseMeasurement": {
+                    "FactoryTimestamp": now.to_rfc3339(), "TrendArrow": arrow, "ValueInMgPerDl": 105
+                }}
+            }))
+            .unwrap();
+            let mut monitor = Monitor::default();
+            let expected: Vec<_> = libre_alert.into_iter().collect();
+            assert_eq!(
+                monitor.reading_from(Provider::LibreLinkUp, &batch, now, &settings),
+                expected
+            );
+            if libre_alert.is_some() {
+                let mut next = batch[0].clone();
+                next.measured_at += chrono::Duration::minutes(1);
+                let mut historical = batch[0].clone();
+                historical.trend = Trend::Unknown;
+                let later = next.measured_at;
+                assert!(
+                    monitor
+                        .reading_from(Provider::LibreLinkUp, &[historical, next], later, &settings)
+                        .is_empty()
+                );
+            }
+            for provider in [Provider::Dexcom, Provider::Nightscout] {
+                assert!(
+                    Monitor::default()
+                        .reading_from(provider, &batch, now, &settings)
+                        .is_empty()
+                );
+            }
+        }
     }
 
     #[test]
