@@ -147,6 +147,11 @@ fn sign_in_form(app: &mut App, ui: &mut egui::Ui) {
                 .desired_width(f32::INFINITY)
                 .margin(egui::vec2(8.0, 6.0)),
         );
+        if app.invalid_site_address
+            && crate::sources::nightscout::normalize_url(&app.source_url).is_err()
+        {
+            ui.colored_label(theme::ink(ui.ctx(), theme::ORANGE), Text::InvalidUrl.get());
+        }
         row(ui, Text::Access.get(), |ui| {
             egui::ComboBox::from_id_salt("nightscout_auth")
                 .width(ui.available_width().min(300.0))
@@ -221,8 +226,13 @@ fn sign_in_form(app: &mut App, ui: &mut egui::Ui) {
     };
     let busy = matches!(app.snapshot.state, State::Connecting | State::Syncing);
     ui.horizontal(|ui| {
+        let submit = if app.invalid_site_address {
+            Text::Retry
+        } else {
+            Text::Connect
+        };
         let click = ui
-            .add_enabled_ui(ready && !busy, |ui| ui::primary(ui, Text::Connect.get()))
+            .add_enabled_ui(ready && !busy, |ui| ui::primary(ui, submit.get()))
             .inner
             .clicked();
         if click
@@ -233,15 +243,17 @@ fn sign_in_form(app: &mut App, ui: &mut egui::Ui) {
         {
             app.connect();
         }
-        if matches!(
-            app.snapshot.state,
-            State::ActionRequired | State::InvalidCredentials | State::Offline
-        ) && ui
-            .add_enabled(
-                app.last_refresh.elapsed().as_secs() >= 30,
-                egui::Button::new(Text::Retry.get()),
+        if !app.invalid_site_address
+            && matches!(
+                app.snapshot.state,
+                State::ActionRequired | State::InvalidCredentials | State::Offline
             )
-            .clicked()
+            && ui
+                .add_enabled(
+                    app.last_refresh.elapsed().as_secs() >= 30,
+                    egui::Button::new(Text::Retry.get()),
+                )
+                .clicked()
         {
             app.last_refresh = std::time::Instant::now();
             app.send(Command::Retry);

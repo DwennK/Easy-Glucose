@@ -19,6 +19,17 @@ pub struct Credentials {
     #[serde(default)]
     pub auth: Auth,
 }
+impl Credentials {
+    pub(crate) fn from_form(url: &str, auth: Auth, password: &mut String) -> Result<Self, Error> {
+        let url = normalize_url(url)?.to_string();
+        Ok(Self {
+            url,
+            auth,
+            token: Zeroizing::new(std::mem::take(password)),
+        })
+    }
+}
+
 pub struct Client {
     http: reqwest::Client,
     credentials: Credentials,
@@ -208,6 +219,21 @@ mod tests {
             1767265200
         );
     }
+    #[tokio::test]
+    async fn corrected_site_reuses_the_token_entered_before_validation() {
+        let mut token = String::from("fixture-token");
+        assert!(matches!(
+            Credentials::from_form("bad site", Auth::Token, &mut token),
+            Err(Error::InvalidUrl)
+        ));
+        assert_eq!(token, "fixture-token");
+        let (url, server) = super::super::test_support::server(vec![(200, json!([]))]).await;
+        let credentials = Credentials::from_form(&url, Auth::Token, &mut token).unwrap();
+        assert!(token.is_empty());
+        Client::new(credentials).unwrap().fetch().await.unwrap();
+        assert!(server.await.unwrap()[0].contains("token=fixture-token"));
+    }
+
     #[tokio::test]
     async fn mixed_response_keeps_only_valid_sensor_readings() {
         let now = Utc::now().timestamp_millis();

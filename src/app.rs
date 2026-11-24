@@ -30,6 +30,7 @@ pub struct App {
     pub username: String,
     pub password: String,
     pub source_url: String,
+    pub(crate) invalid_site_address: bool,
     pub nightscout_auth: nightscout::Auth,
     pub last_refresh: Instant,
     pub confirm_clear: bool,
@@ -109,6 +110,7 @@ impl App {
             username: String::new(),
             password: String::new(),
             source_url: String::new(),
+            invalid_site_address: false,
             nightscout_auth: nightscout::Auth::Token,
             last_refresh: Instant::now() - Duration::from_secs(31),
             confirm_clear: false,
@@ -175,6 +177,31 @@ impl App {
         }
     }
     pub fn connect(&mut self) {
+        let mut take_password = || zeroize::Zeroizing::new(std::mem::take(&mut self.password));
+        let credentials = match self.config.provider {
+            Provider::Dexcom => Credentials::Dexcom(crate::dexcom::Credentials {
+                username: self.username.trim().into(),
+                password: take_password(),
+                region: self.config.region,
+            }),
+            Provider::LibreLinkUp => Credentials::LibreLinkUp(libre::Credentials {
+                username: self.username.trim().into(),
+                password: take_password(),
+                patient_id: None,
+            }),
+            Provider::Nightscout => match nightscout::Credentials::from_form(
+                &self.source_url,
+                self.nightscout_auth,
+                &mut self.password,
+            ) {
+                Ok(credentials) => Credentials::Nightscout(credentials),
+                Err(_) => {
+                    self.invalid_site_address = true;
+                    return;
+                }
+            },
+        };
+        self.invalid_site_address = false;
         self.generation += 1;
         self.snapshot = Snapshot {
             generation: self.generation,
@@ -182,27 +209,10 @@ impl App {
             state: State::Connecting,
             ..Snapshot::default()
         };
-        let password = zeroize::Zeroizing::new(std::mem::take(&mut self.password));
-        let credentials = match self.config.provider {
-            Provider::Dexcom => Credentials::Dexcom(crate::dexcom::Credentials {
-                username: self.username.trim().into(),
-                password,
-                region: self.config.region,
-            }),
-            Provider::LibreLinkUp => Credentials::LibreLinkUp(libre::Credentials {
-                username: self.username.trim().into(),
-                password,
-                patient_id: None,
-            }),
-            Provider::Nightscout => Credentials::Nightscout(nightscout::Credentials {
-                url: self.source_url.trim().into(),
-                token: password,
-                auth: self.nightscout_auth,
-            }),
-        };
         self.send(Command::Connect(self.generation, credentials));
     }
     pub fn disconnect(&mut self) {
+        self.invalid_site_address = false;
         self.generation += 1;
         self.snapshot = Snapshot {
             generation: self.generation,
@@ -214,6 +224,7 @@ impl App {
         self.send(Command::Disconnect(self.generation, self.config.provider));
     }
     pub fn demo(&mut self) {
+        self.invalid_site_address = false;
         self.confirm_clear = false;
         self.generation += 1;
         self.snapshot = Snapshot {
@@ -228,6 +239,7 @@ impl App {
         self.mark_config();
     }
     pub fn restore(&mut self) {
+        self.invalid_site_address = false;
         self.confirm_clear = false;
         self.generation += 1;
         self.snapshot = Snapshot {
