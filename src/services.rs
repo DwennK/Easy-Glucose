@@ -382,6 +382,12 @@ async fn run(
                 continue;
             }
             Command::Disconnect(g, source) => {
+                if let Err(error) = store.begin_disconnect(source) {
+                    snapshot.generation = g;
+                    snapshot.error = Some(error);
+                    emit(&events, &ctx, Event::Data(snapshot.clone()));
+                    continue;
+                }
                 provider = source;
                 client = None;
                 demo = false;
@@ -391,12 +397,9 @@ async fn run(
                     provider,
                     ..Snapshot::default()
                 };
-                if let Err(e) = vault.delete(provider) {
-                    snapshot.error = Some(e);
-                }
-                if let Err(e) = store.clear_source_cache(provider) {
-                    snapshot.error = Some(e);
-                }
+                snapshot.error = store
+                    .finish_pending_disconnect(provider, vault.as_ref())
+                    .err();
                 due = Instant::now() + Duration::from_secs(86400);
                 emit(&events, &ctx, Event::Data(snapshot.clone()));
                 continue;
@@ -413,7 +416,10 @@ async fn run(
                 };
                 snapshot.state = State::Connecting;
                 emit(&events, &ctx, Event::Data(snapshot.clone()));
-                match vault.load(provider) {
+                match store
+                    .finish_pending_disconnect(provider, vault.as_ref())
+                    .and_then(|()| vault.load(provider))
+                {
                     Ok(Some((credentials, legacy))) => {
                         persist_login = legacy;
                         match store.load_source_cache(&credentials, config.history_days, legacy) {
@@ -450,6 +456,13 @@ async fn run(
                     state: State::Connecting,
                     ..Snapshot::default()
                 };
+                if let Err(error) = store.finish_pending_disconnect(provider, vault.as_ref()) {
+                    snapshot.state = State::Disconnected;
+                    snapshot.error = Some(error);
+                    due = Instant::now() + Duration::from_secs(86400);
+                    emit(&events, &ctx, Event::Data(snapshot.clone()));
+                    continue;
+                }
                 // A new attempt starts with no readings. The previous saved login is only
                 // replaced after successful authentication; each cache verifies account identity.
                 match Client::new(credentials) {
@@ -977,6 +990,109 @@ mod tests {
             );
             assert_eq!(requests.await.unwrap().len(), 1);
         }
+    }
+
+    #[tokio::test]
+    async fn a_locked_vault_cannot_restore_a_disconnected_account() {
+        use storage::CredentialStore;
+        #[derive(Clone, Default)]
+        struct LockedVault {
+            vault: MemoryVault,
+            locked: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        }
+        impl CredentialStore for LockedVault {
+            fn load(&self, provider: Provider) -> Result<Option<(Credentials, bool)>, String> {
+                self.vault.load(provider)
+            }
+            fn save(&self, credentials: &Credentials) -> Result<(), String> {
+                self.vault.save(credentials)
+            }
+            fn delete(&self, provider: Provider) -> Result<(), String> {
+                if self.locked.load(std::sync::atomic::Ordering::SeqCst) {
+                    Err("locked vault".into())
+                } else {
+                    self.vault.delete(provider)
+                }
+            }
+        }
+        let (url, requests) =
+            crate::sources::test_support::server(vec![(200, serde_json::json!([]))]).await;
+        let credentials = Credentials::Nightscout(crate::sources::nightscout::Credentials {
+            url: format!("{url}/"),
+            token: Default::default(),
+            auth: Default::default(),
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store {
+            directory: dir.path().into(),
+        };
+        let vault = LockedVault::default();
+        vault.save(&credentials).unwrap();
+        store
+            .save_source_cache(&credentials, &demo_readings(Utc::now()))
+            .unwrap();
+        let start = || {
+            Service::start_with_credentials(
+                store.clone(),
+                Config::default(),
+                egui::Context::default(),
+                Box::new(vault.clone()),
+            )
+            .unwrap()
+        };
+        let service = start();
+        vault
+            .locked
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        service
+            .commands
+            .send(Command::Disconnect(1, Provider::Nightscout))
+            .unwrap();
+        assert!(
+            snapshot(&service, 1, State::Disconnected)
+                .await
+                .error
+                .is_some()
+        );
+        assert!(vault.load(Provider::Nightscout).unwrap().is_some());
+        assert!(
+            store
+                .load_source_cache(&credentials, 7, false)
+                .unwrap()
+                .is_empty()
+        );
+        drop(service);
+        let service = start();
+        service
+            .commands
+            .send(Command::Restore(0, Provider::Nightscout))
+            .unwrap();
+        assert!(
+            snapshot(&service, 0, State::Disconnected)
+                .await
+                .error
+                .is_some()
+        );
+        vault
+            .locked
+            .store(false, std::sync::atomic::Ordering::SeqCst);
+        service
+            .commands
+            .send(Command::Restore(1, Provider::Nightscout))
+            .unwrap();
+        assert!(
+            snapshot(&service, 1, State::Disconnected)
+                .await
+                .error
+                .is_none()
+        );
+        assert!(vault.load(Provider::Nightscout).unwrap().is_none());
+        service
+            .commands
+            .send(Command::Connect(2, credentials))
+            .unwrap();
+        snapshot(&service, 2, State::Empty).await;
+        assert_eq!(requests.await.unwrap().len(), 1);
     }
 
     #[tokio::test]

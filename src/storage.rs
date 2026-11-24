@@ -203,6 +203,28 @@ impl Store {
             },
         )
     }
+    fn disconnect_marker(&self, provider: Provider) -> PathBuf {
+        self.directory
+            .join(format!("disconnect-{}.json", provider.key()))
+    }
+    pub(crate) fn begin_disconnect(&self, provider: Provider) -> Result<(), String> {
+        atomic_json(&self.disconnect_marker(provider), &true)
+    }
+    pub(crate) fn finish_pending_disconnect(
+        &self,
+        provider: Provider,
+        vault: &dyn CredentialStore,
+    ) -> Result<(), String> {
+        let marker = self.disconnect_marker(provider);
+        if !marker.try_exists().map_err(|_| Text::ReadError.english())? {
+            return Ok(());
+        }
+        // Both cleanup steps are idempotent. The marker blocks restore until both succeed.
+        let credentials = vault.delete(provider);
+        let history = self.clear_source_cache(provider);
+        credentials.and(history)?;
+        fs::remove_file(marker).map_err(|_| Text::WriteError.english().into())
+    }
     pub fn clear_source_cache(&self, provider: Provider) -> Result<(), String> {
         let file = self
             .directory
