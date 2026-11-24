@@ -218,6 +218,9 @@ async fn run(
     let mut provider = config.provider;
     let mut rate_limits = std::collections::HashMap::<Provider, RateLimit>::new();
     let mut persist_login = false;
+    // A failed restore must retry the same cache (including legacy Dexcom history)
+    // before any live or retention write can replace it.
+    let mut retry_cache_read = None;
     let mut monitor = crate::alerts::Monitor::default();
     let audio_sequence = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
     let play = |kinds: Vec<crate::alerts::Kind>, rules: Vec<crate::alerts::Rule>| {
@@ -274,6 +277,7 @@ async fn run(
                 | Command::Connect(..)
                 | Command::SelectPatient(..)
         ) {
+            retry_cache_read = None;
             monitor = crate::alerts::Monitor::default();
             audio_sequence.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
@@ -319,6 +323,7 @@ async fn run(
                 }
                 if !demo
                     && !persist_login
+                    && retry_cache_read.is_none()
                     && retention_changed
                     && let Some(c) = client.as_ref()
                 {
@@ -396,7 +401,10 @@ async fn run(
                         persist_login = legacy;
                         match store.load_source_cache(&credentials, config.history_days, legacy) {
                             Ok(h) => snapshot.readings = h,
-                            Err(e) => emit(&events, &ctx, Event::Notice(e)),
+                            Err(e) => {
+                                retry_cache_read = Some(legacy);
+                                emit(&events, &ctx, Event::Notice(e));
+                            }
                         }
                         match Client::new(credentials) {
                             Ok(c) => client = Some(c),
@@ -536,23 +544,29 @@ async fn run(
                     play(kinds, rules);
                 }
                 let credentials = c.credentials();
-                if persist_login {
-                    // Libre resolves the patient during fetch. Read the matching
-                    // cache only after authentication confirms the final identity.
-                    let saved = store
-                        .load_source_cache(&credentials, config.history_days, false)
-                        .and_then(|mut cached| {
+                if persist_login || retry_cache_read.is_some() {
+                    let legacy = retry_cache_read.unwrap_or(false);
+                    match store.load_source_cache(&credentials, config.history_days, legacy) {
+                        Ok(mut cached) => {
                             cached.append(&mut snapshot.readings);
                             snapshot.readings = cached;
-                            vault.save(&credentials)
-                        });
-                    match saved {
+                            retry_cache_read = None;
+                        }
+                        Err(e) => {
+                            retry_cache_read = Some(legacy);
+                            emit(&events, &ctx, Event::Notice(e));
+                        }
+                    }
+                }
+                if persist_login && retry_cache_read.is_none() {
+                    match vault.save(&credentials) {
                         Ok(()) => persist_login = false,
                         Err(e) => emit(&events, &ctx, Event::Notice(e)),
                     }
                 }
                 merge_readings(&mut snapshot.readings, readings, now, config.history_days);
                 if !persist_login
+                    && retry_cache_read.is_none()
                     && let Err(e) = store.save_source_cache(&credentials, &snapshot.readings)
                 {
                     emit(&events, &ctx, Event::Notice(e));
@@ -819,6 +833,72 @@ mod tests {
                 .is_empty()
         );
         assert_eq!(requests.await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn restored_cache_is_read_again_before_writing_live_samples() {
+        use crate::sources::nightscout;
+        use storage::CredentialStore;
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let server = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let credentials = Credentials::Nightscout(nightscout::Credentials {
+            url: format!("http://{}/", server.local_addr().unwrap()),
+            token: Default::default(),
+            auth: Default::default(),
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store {
+            directory: dir.path().into(),
+        };
+        let history = vec![Reading {
+            measured_at: Utc::now() - chrono::Duration::days(2),
+            mgdl: 95,
+            trend: crate::core::Trend::Flat,
+            limit: None,
+        }];
+        store.save_source_cache(&credentials, &history).unwrap();
+        let path = dir.path().join("readings-nightscout.json");
+        let saved = dir.path().join("saved");
+        std::fs::rename(&path, &saved).unwrap();
+        std::fs::create_dir(&path).unwrap();
+
+        let vault = MemoryVault::default();
+        vault.save(&credentials).unwrap();
+        let service = Service::start_with_credentials(
+            store.clone(),
+            Config::default(),
+            egui::Context::default(),
+            Box::new(vault),
+        )
+        .unwrap();
+        service
+            .commands
+            .send(Command::Restore(1, Provider::Nightscout))
+            .unwrap();
+
+        // The request starts after the first cache read. Restore the file before responding.
+        let (mut socket, _) = tokio::time::timeout(Duration::from_secs(5), server.accept())
+            .await
+            .unwrap()
+            .unwrap();
+        socket.read_u8().await.unwrap();
+        std::fs::remove_dir(&path).unwrap();
+        std::fs::rename(saved, path).unwrap();
+        let body =
+            serde_json::json!([{"date":Utc::now().timestamp_millis(),"sgv":123}]).to_string();
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{body}",
+            body.len()
+        );
+        socket.write_all(response.as_bytes()).await.unwrap();
+        let result = snapshot(&service, 1, State::Connected).await;
+        assert_eq!(result.readings.len(), 2);
+        assert_eq!(result.readings[0], history[0]);
+        assert_eq!(
+            store.load_source_cache(&credentials, 7, false).unwrap(),
+            result.readings
+        );
     }
 
     #[tokio::test]
