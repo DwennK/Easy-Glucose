@@ -1,6 +1,8 @@
-use crate::i18n::Text;
+use crate::{i18n::Text, storage::Config};
 use eframe::egui;
 use std::sync::mpsc::{self, Receiver};
+#[cfg(windows)]
+use tray_icon::menu::CheckMenuItem;
 use tray_icon::{
     TrayIcon, TrayIconBuilder,
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
@@ -19,21 +21,28 @@ pub enum Action {
 }
 pub struct Tray {
     icon: TrayIcon,
-    items: [MenuItem; 4],
+    items: [MenuItem; 3],
+    #[cfg(not(windows))]
+    widget_item: MenuItem,
     #[cfg(windows)]
-    clock_item: tray_icon::menu::CheckMenuItem,
+    widget_item: CheckMenuItem,
+    #[cfg(windows)]
+    clock_item: CheckMenuItem,
     pub events: Receiver<Action>,
     last_title: String,
 }
 impl Tray {
-    pub fn new(ctx: egui::Context) -> Result<Self, String> {
+    pub fn new(ctx: egui::Context, _config: &Config) -> Result<Self, String> {
         let menu = Menu::new();
         let dashboard = MenuItem::new(Text::OpenApp.get(), true, None);
         let settings = MenuItem::new(Text::Settings.get(), true, None);
+        #[cfg(not(windows))]
         let widget = MenuItem::new(Text::ToggleWidget.get(), true, None);
         #[cfg(windows)]
+        let widget = CheckMenuItem::new(Text::ToggleWidget.get(), true, _config.widget_open, None);
+        #[cfg(windows)]
         let clock_item =
-            tray_icon::menu::CheckMenuItem::new(Text::ClockWidget.get(), true, false, None);
+            CheckMenuItem::new(Text::ClockWidget.get(), true, _config.clock_widget, None);
         let quit = MenuItem::new(Text::Quit.get(), true, None);
         menu.append_items(&[
             &dashboard,
@@ -111,7 +120,8 @@ impl Tray {
         }));
         Ok(Self {
             icon,
-            items: [dashboard, settings, widget, quit],
+            items: [dashboard, settings, quit],
+            widget_item: widget,
             #[cfg(windows)]
             clock_item,
             events: rx,
@@ -162,20 +172,25 @@ impl Tray {
         Some(position)
     }
     #[cfg(windows)]
-    pub fn set_clock_checked(&self, enabled: bool) {
-        if self.clock_item.is_checked() != enabled {
-            self.clock_item.set_checked(enabled);
+    pub fn sync_widget_checks(&self, config: &Config) {
+        for (item, checked) in [
+            (&self.widget_item, config.widget_open),
+            (&self.clock_item, config.clock_widget),
+        ] {
+            if item.is_checked() != checked {
+                item.set_checked(checked);
+            }
         }
     }
     pub fn localize(&self) {
+        self.widget_item.set_text(Text::ToggleWidget.get());
         #[cfg(windows)]
         self.clock_item.set_text(Text::ClockWidget.get());
-        for (item, text) in self.items.iter().zip([
-            Text::OpenApp,
-            Text::Settings,
-            Text::ToggleWidget,
-            Text::Quit,
-        ]) {
+        for (item, text) in self
+            .items
+            .iter()
+            .zip([Text::OpenApp, Text::Settings, Text::Quit])
+        {
             item.set_text(text.get());
         }
     }

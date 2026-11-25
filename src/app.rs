@@ -82,7 +82,7 @@ impl App {
         theme::apply(&ctx, config.theme);
         let data_dir = store.directory.clone();
         let service = Service::start(store, config.clone(), ctx.clone())?;
-        let (tray, notice) = match Tray::new(ctx.clone()) {
+        let (tray, notice) = match Tray::new(ctx.clone(), &config) {
             Ok(tray) => (Some(tray), notice),
             Err(e) => (None, Some(e)),
         };
@@ -610,9 +610,6 @@ impl eframe::App for App {
         self.widget_was_open = self.config.widget_open;
         #[cfg(windows)]
         {
-            if let Some(tray) = &self.tray {
-                tray.set_clock_checked(self.config.clock_widget);
-            }
             if self.config.clock_widget {
                 let monitor = self.clock_monitor.get_or_insert_with(|| {
                     crate::platform::clock::ClockMonitor::start(ctx.clone())
@@ -644,6 +641,8 @@ impl eframe::App for App {
             );
         }
         if let Some(tray) = &mut self.tray {
+            #[cfg(windows)]
+            tray.sync_widget_checks(&self.config);
             let title = self
                 .snapshot
                 .readings
